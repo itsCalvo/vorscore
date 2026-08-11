@@ -90,3 +90,13 @@ function eatKickoffIso(matchDate, kickoffTime){
   if(!matchDate || !kickoffTime) return "";
   return `${matchDate}T${kickoffTime}:00+03:00`;
 }
+
+function formatHistoryDateHeading(dateStr){
+  const d = new Date(`${dateStr}T12:00:00`);
+  const label = d.toLocaleDateString("en-KE", {
+    day: "numeric",
+    month: "long",
+    timeZone: APP_TIMEZONE,
+  });
+  return `${label} · ${dateStr}`;
+}
