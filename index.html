@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VorScore Tips — Football Predictions</title>
 <meta name="description" content="Football prediction guides, betting tips, match analysis, and responsible strategies from VorScore Tips.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,11 +38,39 @@
     overflow-x:hidden;
   }
   .shell{ max-width:1500px; margin:0 auto; padding:var(--shell-pad); display:flex; gap:0; }
+  .mobile-header{
+    display:none; position:sticky; top:0; z-index:80;
+    align-items:center; gap:12px; margin:calc(-1 * var(--shell-pad)) calc(-1 * var(--shell-pad)) 16px;
+    padding:12px var(--shell-pad); padding-top:max(12px, env(safe-area-inset-top));
+    background:rgba(10,18,32,0.92); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+  }
+  .mobile-brand{
+    font-size:16px; font-weight:800; letter-spacing:0.2px; flex:1; min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .mobile-brand span{ color:var(--gold); }
+  .mobile-nav{
+    display:none; position:fixed; bottom:0; left:0; right:0; z-index:85;
+    grid-template-columns:repeat(3,1fr); gap:4px;
+    padding:8px 12px; padding-bottom:max(8px, env(safe-area-inset-bottom));
+    background:rgba(10,18,32,0.96); backdrop-filter:blur(14px);
+    border-top:1px solid var(--border);
+  }
+  .mobile-nav-btn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    min-height:52px; padding:6px 8px; border:0; border-radius:12px;
+    background:transparent; color:var(--text-faint); font-size:11px; font-weight:700;
+    cursor:pointer; transition:background .15s, color .15s;
+  }
+  .mobile-nav-btn svg{ width:20px; height:20px; opacity:.85; }
+  .mobile-nav-btn.active{ color:var(--gold); background:rgba(240,180,60,0.1); }
+  .mobile-nav-btn.active svg{ opacity:1; stroke:var(--gold); }
   .menu-toggle{
-    display:none; align-items:center; justify-content:center; gap:8px;
+    display:none; align-items:center; justify-content:center;
     background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px;
-    color:var(--text); font-size:14px; font-weight:600; padding:10px 14px; cursor:pointer;
-    flex-shrink:0;
+    color:var(--text); cursor:pointer; flex-shrink:0;
+    width:44px; height:44px; padding:0;
   }
   .menu-toggle svg{ width:20px; height:20px; }
   .sidebar-backdrop{
@@ -118,7 +146,12 @@
     width:40px;height:40px;border-radius:50%; background:linear-gradient(135deg,#3a4a5c,#1c2430);
     border:1px solid var(--border); display:flex;align-items:center;justify-content:center; font-size:16px;
   }
-  .date-tabs{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+  .date-tabs{
+    display:flex; gap:8px; margin-bottom:18px; flex-wrap:nowrap;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+    padding-bottom:2px;
+  }
+  .date-tabs::-webkit-scrollbar{ display:none; }
   .date-pill{
     padding:9px 18px; border-radius:20px; font-size:13.5px; color:var(--text-dim);
     background: rgba(255,255,255,0.03); border:1px solid var(--border); cursor:pointer;
@@ -135,7 +168,8 @@
   .banner .rocket{ width:34px;height:34px; border-radius:50%; background:rgba(255,255,255,0.05); display:flex;align-items:center;justify-content:center; flex-shrink:0; font-size:16px; }
   .banner a{ color:var(--gold); text-decoration:none; font-weight:600; }
   .banner a:hover{ text-decoration:underline; }
-  .banner .close{ margin-left:auto; color:var(--text-faint); cursor:pointer; font-size:16px; flex-shrink:0; padding:4px; }
+  .banner .close{ margin-left:auto; color:var(--text-faint); cursor:pointer; font-size:16px; flex-shrink:0; padding:8px; min-width:44px; min-height:44px; display:flex; align-items:center; justify-content:center; }
+  .banner-text{ flex:1; min-width:0; line-height:1.45; }
 
   .stat-cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:26px; }
   .stat-card{
@@ -175,6 +209,7 @@
   tbody td{ padding:12px 14px; text-align:left; color:var(--text); vertical-align:middle; }
   td.date-cell{ white-space:nowrap; }
   .date-time{ font-weight:600; font-size:14px; }
+  .match-meta{ font-size:12px; color:var(--text-dim); margin-top:2px; }
   .date-status{ color:var(--text-faint); font-size:12px; margin-top:2px; text-transform:capitalize; }
   .date-status.live{ color:var(--red); font-weight:700; }
   .date-status.finished{ color:var(--green); }
@@ -269,24 +304,33 @@
   /* Mobile sidebar drawer */
   @media (max-width: 900px){
     :root{ --shell-pad: 16px; }
-    .shell{ flex-direction:column; position:relative; }
-    .menu-toggle{ display:inline-flex; }
+    .shell{ flex-direction:column; position:relative; padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+    .mobile-header{ display:flex; }
+    .mobile-header .menu-toggle{ display:inline-flex; }
+    .mobile-nav{ display:grid; }
     .sidebar-backdrop{ display:block; }
     .sidebar{
       position:fixed; top:0; left:0; bottom:0; z-index:100;
       width:min(280px, 86vw); min-height:100dvh; border-radius:0 20px 20px 0;
       transform:translateX(-105%); box-shadow:8px 0 40px rgba(0,0,0,0.45);
+      padding-top:max(22px, env(safe-area-inset-top));
     }
     .sidebar.open{ transform:translateX(0); }
     .main{ padding-left:0; padding-top:0; }
-    .topbar{ margin-bottom:18px; }
+    .main > .menu-toggle{ display:none; }
+    .topbar{ display:none; }
     .promo-card{ display:block; margin-top:18px; }
     nav.menu{ flex-direction:column; flex:1; }
-    .nav-item{ min-height:44px; }
-    .hero-copy{ min-height:240px; padding:24px 20px; margin-bottom:20px; }
-    .hero-copy::after{ right:4%; top:10%; font-size:clamp(72px,22vw,140px); }
-    .banner{ flex-wrap:wrap; font-size:13px; padding:12px 14px; gap:10px; }
-    .banner .close{ margin-left:auto; }
+    .nav-item{ min-height:48px; font-size:15px; }
+    .hero-copy{
+      min-height:auto; padding:20px 18px; margin:0 0 16px;
+      align-items:flex-start;
+    }
+    .hero-copy::after{ display:none; }
+    .hero-copy h2{ font-size:clamp(22px,6.5vw,32px); line-height:1.08; margin-bottom:10px; }
+    .hero-copy p{ font-size:13px; line-height:1.55; margin-bottom:14px; max-width:none; }
+    .hero-cta{ width:100%; justify-content:center; min-height:44px; }
+    .banner{ align-items:flex-start; font-size:13px; padding:12px 14px; gap:10px; }
     .stat-cards{ grid-template-columns:1fr; gap:14px; margin-bottom:20px; }
     .stat-card{ padding:22px 18px; }
     .blog-toolbar{ flex-direction:column; align-items:stretch; }
@@ -294,57 +338,103 @@
     .article-reader{ padding:20px 16px; margin-top:24px; }
     .article-reader h2{ font-size:24px; }
     .history-day-title{ font-size:16px; }
+    .history-day-title .team-name{ display:block; margin-top:2px; font-size:12px; }
   }
 
-  /* Small phones */
-  @media (max-width: 620px){
-    :root{ --shell-pad: 12px; }
-    .logo-text{ font-size:16px; }
-    .topbar h1{ font-size:clamp(24px,7vw,32px); }
-    .hero-copy{ min-height:200px; padding:20px 16px; align-items:flex-end; }
-    .hero-copy h2{ font-size:clamp(26px,8vw,36px); }
-    .hero-copy p{ font-size:13px; margin-bottom:16px; }
-    .date-tabs{ gap:8px; margin-bottom:14px; }
-    .date-pill{ padding:8px 14px; font-size:12.5px; }
-    .tabs-row{ gap:18px; }
-    .tab{ font-size:14px; }
-    .article-grid{ grid-template-columns:1fr; }
-    .blog-hero{ padding:20px 16px; }
-    .featured-note{ align-self:stretch; }
+  /* Phone layout */
+  @media (max-width: 768px){
     .table-scroll-hint{ display:none; }
 
     /* Card layout for match tables */
     .table-wrap{ overflow:visible; background:transparent; border:none; }
     table.responsive-table{ display:block; min-width:0; }
     table.responsive-table thead{ display:none; }
-    table.responsive-table tbody{ display:flex; flex-direction:column; gap:12px; }
+    table.responsive-table tbody{ display:flex; flex-direction:column; gap:10px; }
     table.responsive-table tr{
-      display:grid; grid-template-columns:1fr 1fr; gap:8px 12px;
-      background:rgba(255,255,255,0.025); border:1px solid var(--border);
-      border-radius:12px; padding:14px;
+      display:grid;
+      grid-template-columns:1fr auto;
+      grid-template-areas:
+        "match match"
+        "meta meta"
+        "pick pick"
+        "result status";
+      gap:0;
+      background:rgba(255,255,255,0.03);
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
     }
-    table.responsive-table tr.empty-row{ display:block; text-align:center; }
-    table.responsive-table tr:hover{ background:rgba(255,255,255,0.04); }
+    table.responsive-table tr.empty-row{
+      display:block; text-align:center; padding:28px 16px;
+      background:rgba(255,255,255,0.025); border:1px solid var(--border); border-radius:14px;
+    }
+    table.responsive-table tr.empty-row td{ display:block; padding:0; }
+    table.responsive-table tr.empty-row td::before{ display:none; }
+    table.responsive-table tr:hover{ background:rgba(255,255,255,0.05); }
     table.responsive-table td{
-      display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-      padding:0; border:none; font-size:13px;
+      display:block; padding:12px 14px; border:none; font-size:14px;
     }
-    table.responsive-table td::before{
-      content:attr(data-label); font-size:10px; font-weight:700;
-      letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint);
+    table.responsive-table td::before{ display:none; }
+    table.responsive-table td[data-label="Match"]{
+      grid-area:match; padding:14px 14px 10px;
+      font-size:15px; font-weight:600; line-height:1.45;
+      border-bottom:1px solid var(--border);
+      background:rgba(255,255,255,0.02);
     }
-    table.responsive-table td[data-label="Match"]{ grid-column:1 / -1; }
-    table.responsive-table td[data-label="Pick"]{ grid-column:1 / -1; }
-    table.responsive-table .table-pick{ word-break:break-word; }
+    table.responsive-table td[data-label="Time"]{
+      grid-area:meta; padding:8px 14px 10px; color:var(--text-dim);
+    }
+    table.responsive-table td[data-label="League"]{ display:none; }
+    table.responsive-table td[data-label="Pick"]{
+      grid-area:pick; padding:10px 14px;
+      border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      background:rgba(240,180,60,0.04);
+    }
+    table.responsive-table td[data-label="Pick"]::before{
+      display:block; content:"Pick"; font-size:10px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); margin-bottom:4px;
+    }
+    table.responsive-table td[data-label="Result"]{
+      grid-area:result; padding:10px 14px; font-size:15px;
+    }
+    table.responsive-table td[data-label="Result"]::before{
+      display:block; content:"Result"; font-size:10px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); margin-bottom:4px;
+    }
+    table.responsive-table td[data-label="Status"]{
+      grid-area:status; padding:10px 14px; text-align:right;
+      display:flex; flex-direction:column; align-items:flex-end; justify-content:center;
+    }
+    table.responsive-table .table-pick{ word-break:break-word; font-size:14px; }
+    table.responsive-table .score-pill{ display:inline-block; margin-top:6px; }
+    table.responsive-table .live-pill{ font-size:11px; }
   }
 
-  @media (max-width: 900px) and (min-width: 621px){
+  /* Small phones */
+  @media (max-width: 620px){
+    :root{ --shell-pad: 14px; }
+    .hero-kicker{ display:none; }
+    .hero-copy p{ display:none; }
+    .hero-copy h2{ font-size:20px; margin-bottom:12px; }
+    .hero-copy{ padding:16px; margin-bottom:12px; }
+    .hero-cta{ font-size:12px; padding:10px 14px; min-height:42px; }
+    .date-pill{ padding:8px 14px; font-size:12.5px; flex-shrink:0; }
+    .tabs-row{ gap:16px; margin-left:-2px; margin-right:-2px; padding:0 2px; }
+    .tab{ font-size:13px; padding-bottom:12px; }
+    .article-grid{ grid-template-columns:1fr; }
+    .blog-hero{ padding:20px 16px; }
+    .featured-note{ align-self:stretch; }
+    .topic-filter{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:2px; }
+    .topic-filter::-webkit-scrollbar{ display:none; }
+    .topic-btn{ flex-shrink:0; }
+  }
+
+  @media (max-width: 900px) and (min-width: 769px){
     .table-scroll-hint{ display:block; }
   }
 
   @media (max-width: 380px){
-    .menu-toggle span{ display:none; }
-    .tabs-row{ gap:14px; }
+    .tabs-row{ gap:12px; }
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -400,10 +490,12 @@
   </aside>
 
   <main class="main">
-    <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      <span>Menu</span>
-    </button>
+    <header class="mobile-header">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="mobile-brand" id="mobileBrand">Today's Tips</div>
+    </header>
     <div class="view active" id="dashboardView">
       <div class="topbar">
         <div>
@@ -426,8 +518,8 @@
 
     <div class="banner" id="banner">
       <div class="rocket">🔮</div>
-      <div>Locked tips are for subscribers only — <a href="#">subscribe here</a> to unlock every banker and slip.</div>
-      <div class="close" id="bannerClose">✕</div>
+      <div class="banner-text">Locked tips are for subscribers only — <a href="#">subscribe here</a> to unlock every banker and slip.</div>
+      <div class="close" id="bannerClose" role="button" aria-label="Dismiss banner">✕</div>
     </div>
 
     <div class="tabs-row">
@@ -485,6 +577,21 @@
     </section>
   </main>
 </div>
+
+<nav class="mobile-nav" id="mobileNav" aria-label="Main navigation">
+  <button class="mobile-nav-btn active" type="button" data-view="dashboard" aria-label="Today's Tips">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+    Tips
+  </button>
+  <button class="mobile-nav-btn" type="button" data-view="history" aria-label="History">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
+    History
+  </button>
+  <button class="mobile-nav-btn" type="button" data-view="blog" aria-label="Blog">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10"/></svg>
+    Blog
+  </button>
+</nav>
 
 <script src="config.js"></script>
 <script>
@@ -646,8 +753,9 @@
     const result = m.is_locked ? '🔒' : renderResult(m);
     const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
     const matchHtml = `<strong>${escapeHtml(m.home_team)}</strong> <span class="team-name">vs</span> <strong>${escapeHtml(m.away_team)}</strong>${score ? `<div class="score-pill">${escapeHtml(score)}</div>` : ''}`;
+    const metaHtml = `<div class="date-time">${escapeHtml(m.kickoff_time || '')}</div>${m.league ? `<div class="match-meta">${escapeHtml(m.league)}</div>` : ''}`;
     return {
-      time: `<td class="date-cell" data-label="Time"><div class="date-time">${escapeHtml(m.kickoff_time || '')}</div></td>`,
+      time: `<td class="date-cell" data-label="Time">${metaHtml}</td>`,
       league: `<td data-label="League">${escapeHtml(m.league || '—')}</td>`,
       match: `<td data-label="Match">${matchHtml}</td>`,
       pick: `<td class="table-pick" data-label="Pick">${pickValues.join('<br>')}</td>`,
@@ -695,10 +803,16 @@
   document.getElementById('bannerClose').addEventListener('click', () => {
     document.getElementById('banner').style.display = 'none';
   });
+  const mobileBrandLabels = { dashboard: 'Today\'s Tips', history: 'History', blog: 'Blog' };
+
   function showView(viewName){
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === viewName + 'View'));
     document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === viewName));
+    document.querySelectorAll('.mobile-nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewName));
+    const brand = document.getElementById('mobileBrand');
+    if(brand && mobileBrandLabels[viewName]) brand.textContent = mobileBrandLabels[viewName];
     closeSidebar();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   const sidebar = document.getElementById('sidebar');
@@ -735,6 +849,9 @@
 
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => showView(item.dataset.view));
+  });
+  document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => showView(btn.dataset.view));
   });
 
   let activeTopic = 'all';
