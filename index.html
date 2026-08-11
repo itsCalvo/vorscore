@@ -529,7 +529,7 @@
     </div>
 
       <div class="table-scroll-hint">Swipe sideways to see all columns</div>
-      <div class="table-wrap" id="todayPicks"><table class="responsive-table" aria-label="Curated football predictions"><thead><tr><th>Time</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody></table></div>
+      <div class="table-wrap" id="todayPicks"><table class="responsive-table" aria-label="Curated football predictions"><thead><tr><th>Time (EAT)</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody></table></div>
     </div>
 
     <section class="view" id="historyView" aria-labelledby="historyTitle">
@@ -655,9 +655,9 @@
 
   // Sample data shown until you connect Supabase (edit config.js)
   const sampleMatches = [
-    { match_date: new Date().toISOString().slice(0,10), kickoff_time:"00:30", status:"finished", home_team:"Sacachspas", away_team:"Deportivo", score:"1 : 2", odds_home:1.3, odds_draw:5, odds_away:2.3, tip:"2.3", tip_sub:"2", goals_tip:"1.37", goals_sub:"U2.5", gg_tip:"1.56", gg_sub:"NO", best_tip:"1.37", best_sub:"U2.5", trust_score:10, category:"banker", is_locked:false },
-    { match_date: new Date().toISOString().slice(0,10), kickoff_time:"01:15", status:"finished", home_team:"Vikingur", away_team:"KR Reyljavik", score:"3 : 2", odds_home:1.62, odds_draw:4.55, odds_away:4, tip:"1.62", tip_sub:"1", goals_tip:"1.2", goals_sub:"O2.5", gg_tip:"1.25", gg_sub:"Yes", best_tip:"1.2", best_sub:"O2.5", trust_score:9, category:"banker", is_locked:false },
-    { match_date: new Date().toISOString().slice(0,10), kickoff_time:"19:00", status:"upcoming", home_team:"Arsenal", away_team:"Chelsea", score:null, odds_home:2.1, odds_draw:3.4, odds_away:3.2, tip:"1.9", tip_sub:"1", goals_tip:"1.4", goals_sub:"O2.5", gg_tip:"1.5", gg_sub:"Yes", best_tip:"1.4", best_sub:"O2.5", trust_score:8, category:"banker", is_locked:true },
+    { match_date: todayEatDate(), kickoff_time:"03:30", status:"finished", home_team:"Sacachspas", away_team:"Deportivo", score:"1 : 2", odds_home:1.3, odds_draw:5, odds_away:2.3, tip:"2.3", tip_sub:"2", goals_tip:"1.37", goals_sub:"U2.5", gg_tip:"1.56", gg_sub:"NO", best_tip:"1.37", best_sub:"U2.5", trust_score:10, category:"banker", is_locked:false },
+    { match_date: todayEatDate(), kickoff_time:"04:15", status:"finished", home_team:"Vikingur", away_team:"KR Reyljavik", score:"3 : 2", odds_home:1.62, odds_draw:4.55, odds_away:4, tip:"1.62", tip_sub:"1", goals_tip:"1.2", goals_sub:"O2.5", gg_tip:"1.25", gg_sub:"Yes", best_tip:"1.2", best_sub:"O2.5", trust_score:9, category:"banker", is_locked:false },
+    { match_date: todayEatDate(), kickoff_time:"22:00", status:"upcoming", home_team:"Arsenal", away_team:"Chelsea", score:null, odds_home:2.1, odds_draw:3.4, odds_away:3.2, tip:"1.9", tip_sub:"1", goals_tip:"1.4", goals_sub:"O2.5", gg_tip:"1.5", gg_sub:"Yes", best_tip:"1.4", best_sub:"O2.5", trust_score:8, category:"banker", is_locked:true },
   ];
 
   async function loadMatches(){
@@ -672,23 +672,22 @@
   }
 
   function formatDateLabel(dateStr){
-    const d = new Date(dateStr + 'T00:00:00');
-    const today = new Date(); today.setHours(0,0,0,0);
-    const diff = Math.round((d - today) / 86400000);
+    const diff = eatDayDiff(dateStr);
     if(diff === 0) return "Today";
     if(diff === -1) return "Yesterday";
     if(diff === 1) return "Tomorrow";
-    return d.toLocaleDateString('en-GB', { day:'numeric', month:'long' });
+    const d = new Date(dateStr + "T12:00:00");
+    return d.toLocaleDateString("en-KE", { day:"numeric", month:"long", timeZone: APP_TIMEZONE });
   }
 
   function isHistorical(match){
-    return match.status === 'finished' || match.match_date < new Date().toISOString().slice(0, 10);
+    return match.status === "finished" || match.match_date < todayEatDate();
   }
 
   function renderDateTabs(){
     const dates = [...new Set(allMatches.filter(match => !isHistorical(match)).map(m => m.match_date))].sort();
     if(!activeDate) {
-      const todayStr = new Date().toISOString().slice(0,10);
+      const todayStr = todayEatDate();
       activeDate = dates.includes(todayStr) ? todayStr : (dates[0] || todayStr);
     }
     const wrap = document.getElementById('dateTabs');
@@ -753,7 +752,7 @@
     const result = m.is_locked ? '🔒' : renderResult(m);
     const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
     const matchHtml = `<strong>${escapeHtml(m.home_team)}</strong> <span class="team-name">vs</span> <strong>${escapeHtml(m.away_team)}</strong>${score ? `<div class="score-pill">${escapeHtml(score)}</div>` : ''}`;
-    const metaHtml = `<div class="date-time">${escapeHtml(m.kickoff_time || '')}</div>${m.league ? `<div class="match-meta">${escapeHtml(m.league)}</div>` : ''}`;
+    const metaHtml = `<div class="date-time">${escapeHtml(formatStoredKickoffEat(m.kickoff_time))}</div>${m.league ? `<div class="match-meta">${escapeHtml(m.league)}</div>` : ''}`;
     return {
       time: `<td class="date-cell" data-label="Time">${metaHtml}</td>`,
       league: `<td data-label="League">${escapeHtml(m.league || '—')}</td>`,
@@ -780,12 +779,12 @@
   }
 
   function renderHistory(){
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayEatDate();
     const rows = allMatches.filter(match => match.status === 'finished' || match.match_date < today).sort((first, second) => `${second.match_date}${second.kickoff_time || ''}`.localeCompare(`${first.match_date}${first.kickoff_time || ''}`));
     const archive = document.getElementById('historyArchive');
     if(!rows.length){ archive.innerHTML = '<div class="empty-row">No finished predictions yet.</div>'; return; }
     const groups = rows.reduce((byDate, match) => { (byDate[match.match_date] ||= []).push(match); return byDate; }, {});
-    archive.innerHTML = Object.entries(groups).map(([date, matches]) => `<section class="history-day"><div class="history-day-head"><h2 class="history-day-title">${formatDateLabel(date)} <span class="team-name">· ${date}</span></h2><span class="history-day-count">${matches.length} ${matches.length === 1 ? 'pick' : 'picks'}</span></div><div class="table-scroll-hint">Swipe sideways to see all columns</div><div class="table-wrap"><table class="responsive-table" aria-label="Predictions from ${escapeHtml(date)}"><thead><tr><th>Time</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody>${matches.map(m => {
+    archive.innerHTML = Object.entries(groups).map(([date, matches]) => `<section class="history-day"><div class="history-day-head"><h2 class="history-day-title">${formatDateLabel(date)} <span class="team-name">· ${date}</span></h2><span class="history-day-count">${matches.length} ${matches.length === 1 ? 'pick' : 'picks'}</span></div><div class="table-scroll-hint">Swipe sideways to see all columns</div><div class="table-wrap"><table class="responsive-table" aria-label="Predictions from ${escapeHtml(date)}"><thead><tr><th>Time (EAT)</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody>${matches.map(m => {
       const cells = matchRowCells({ ...m, status:'finished' });
       cells.status = `<td class="table-status finished" data-label="Status">${renderStatus({ ...m, status:'finished' })}</td>`;
       return `<tr>${cells.time}${cells.league}${cells.match}${cells.pick}${cells.status}${cells.result}</tr>`;

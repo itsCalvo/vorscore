@@ -335,8 +335,8 @@
       external_match_id: fixture.fixture_id || legacy.external_match_id || null,
       api_provider: fixture.fixture_id ? 'api-football' : (legacy.api_provider || 'manual'),
       api_status: fixture.api_status || legacy.api_status || null,
-      match_date: fixture.kickoff ? fixture.kickoff.slice(0, 10) : legacy.match_date,
-      kickoff_time: fixture.kickoff ? fixture.kickoff.slice(11, 16) : (legacy.kickoff_time || ''),
+      match_date: fixture.kickoff ? isoToEatParts(fixture.kickoff).match_date : legacy.match_date,
+      kickoff_time: fixture.kickoff ? isoToEatParts(fixture.kickoff).kickoff_time : (legacy.kickoff_time || ''),
       status: fixture.fixture_id ? 'upcoming' : (legacy.status || 'upcoming'),
       competition_id: fixture.league?.id || fixture.league_id || legacy.competition_id || null,
       competition_country: fixture.league?.country || fixture.country || legacy.competition_country || null,
@@ -375,7 +375,7 @@
   function fillForm(m){
     selectedFixture = m.external_match_id ? {
       fixture_id: m.external_match_id,
-      kickoff: `${m.match_date}T${m.kickoff_time || '00:00'}:00Z`,
+      kickoff: eatKickoffIso(m.match_date, m.kickoff_time),
       api_status: m.api_status,
       venue: m.venue || null,
       league: { id: m.competition_id, name: m.league, logo: m.competition_logo_url },
@@ -413,9 +413,7 @@
   document.getElementById('cancelBtn').onclick = resetForm;
 
   function todayDate(){
-    const date = new Date();
-    const offset = date.getTimezoneOffset() * 60000;
-    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+    return todayEatDate();
   }
   document.getElementById('fixtureDate').value = todayDate();
   document.getElementById('todayFixtureBtn').onclick = () => {
@@ -458,10 +456,7 @@
   }
 
   function formatKickoff(value, includeDate = false){
-    if(!value) return 'Kickoff unavailable';
-    const date = new Date(value);
-    if(Number.isNaN(date.getTime())) return 'Kickoff unavailable';
-    return date.toLocaleString(undefined, includeDate ? { dateStyle:'medium', timeStyle:'short' } : { timeStyle:'short' });
+    return formatKickoffEat(value, includeDate);
   }
 
   function normalizeFixture(fixture){
@@ -819,7 +814,7 @@
     document.getElementById('trackingSummary').textContent = `Upcoming ${counts.upcoming || 0} · Live ${counts.live || 0} · Finished ${counts.finished || 0}`;
     tbody.innerHTML = data.map(m => `
       <tr>
-        <td>${m.match_date}<br><span style="color:var(--text-dim)">${m.kickoff_time||''}</span></td>
+        <td>${m.match_date}<br><span style="color:var(--text-dim)">${formatStoredKickoffEat(m.kickoff_time)}</span></td>
         <td>${m.home_team} vs ${m.away_team}<div class="match-status ${m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : ''}">${m.status === 'live' ? `LIVE${m.current_minute ? ` ${m.current_minute}'` : ''}` : m.status === 'finished' ? `FT${m.score ? ` · ${m.score}` : ''}` : 'Upcoming'}</div></td>
         <td>${m.category === 'slip_of_day' ? 'Slip Of The Day' : 'Banker'}</td>
         <td><span class="badge ${m.is_locked ? 'locked' : 'open'}">${m.is_locked ? 'Locked' : 'Open'}</span></td>

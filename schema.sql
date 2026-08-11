@@ -6,7 +6,7 @@
 create table if not exists matches (
   id uuid primary key default gen_random_uuid(),
   match_date date not null,
-  kickoff_time text not null,          -- e.g. "18:30"
+  kickoff_time text not null,          -- HH:mm in East Africa Time (EAT / Africa-Nairobi)
   status text not null default 'upcoming', -- upcoming | live | finished
   league text,
   home_team text not null,

@@ -17,6 +17,29 @@ function lifecycleStatus(apiStatus: string) {
   return 'upcoming';
 }
 
+function isoToEatParts(iso: string) {
+  if (!iso) return { match_date: '', kickoff_time: '' };
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return { match_date: '', kickoff_time: '' };
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Africa/Nairobi',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date)
+      .filter(part => part.type !== 'literal')
+      .map(part => [part.type, part.value]),
+  );
+  return {
+    match_date: `${parts.year}-${parts.month}-${parts.day}`,
+    kickoff_time: `${parts.hour}:${parts.minute}`,
+  };
+}
+
 function nextSync(status: string, kickoff: string, intervalSeconds: number) {
   if (status === 'finished' || status === 'cancelled' || status === 'postponed') return null;
   if (status === 'suspended') return new Date(Date.now() + 15 * 60000).toISOString();
@@ -106,9 +129,10 @@ Deno.serve(async request => {
     const awayScore = item.goals?.away ?? null;
     const predictionUpdates = status === 'finished' ? evaluatePredictions(match, homeScore, awayScore) : {};
     const syncedAt = new Date().toISOString();
+    const eat = isoToEatParts(item.fixture?.date || '');
     const update: Record<string, unknown> = {
-      match_date: item.fixture?.date?.slice(0, 10) || match.match_date,
-      kickoff_time: item.fixture?.date?.slice(11, 16) || match.kickoff_time,
+      match_date: eat.match_date || match.match_date,
+      kickoff_time: eat.kickoff_time || match.kickoff_time,
       status,
       api_provider: 'api-football',
       api_status: apiStatus,
