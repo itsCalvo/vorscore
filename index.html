@@ -175,6 +175,10 @@
   .table-status{ color:var(--text-dim); font-weight:700; text-transform:uppercase; white-space:nowrap; }
   .table-status.live{ color:var(--red); }
   .table-status.finished{ color:var(--green); }
+  .live-pill{ display:inline-block; background:#dc2626; color:white; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; animation:pulse 1.5s infinite; }
+  .finished-pill{ color:var(--green); font-weight:800; }
+  .upcoming-pill{ color:var(--text-dim); font-weight:700; }
+  @keyframes pulse{ 0%{ opacity:1; } 50%{ opacity:.6; } 100%{ opacity:1; } }
   .table-result{ font-weight:800; white-space:nowrap; }
   .table-result.win{ color:var(--green); }
   .table-result.loss{ color:var(--red); }
@@ -503,6 +507,20 @@
     return `<div class="prediction-pick"><span>${label}</span><span class="pick-result ${state[1]}">${state[0]}</span></div>`;
   }
 
+  function renderStatus(match){
+    if(match.status === 'live'){
+      return `<span class="live-pill">🔴 LIVE ${match.current_minute ?? ''}'</span>`;
+    }
+    if(match.status === 'finished') return '<span class="finished-pill">FT</span>';
+    return '<span class="upcoming-pill">UPCOMING</span>';
+  }
+
+  function renderResult(match){
+    if(match.prediction_result === 'win') return '✅ WIN';
+    if(match.prediction_result === 'loss') return '❌ LOSS';
+    return '⏳';
+  }
+
   function renderTable(){
     const rows = allMatches.filter(m => !isHistorical(m) && m.match_date === activeDate && (activeCategory === 'all' || m.category === activeCategory));
     const tbody = document.getElementById('tableBody');
@@ -512,14 +530,12 @@
       return;
     }
     tbody.innerHTML = rows.map(m => {
-      const status = m.status === 'live' ? `LIVE${m.current_minute ? ` ${m.current_minute}'` : ''}` : m.status === 'finished' ? 'FINISHED' : 'UPCOMING';
       const stateClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
       const score = m.score || (m.home_score != null && m.away_score != null ? `${m.home_score} - ${m.away_score}` : '');
       const pickValues = m.is_locked ? ['🔒 Subscriber pick'] : [m.prediction_selection ? `${pickLabel(m.prediction_market, m.prediction_selection)}${selectedOdds(m)}` : '—'];
-      const resultValues = m.is_locked ? ['🔒'] : [m.prediction_selection ? m.prediction_result : 'pending'];
-      const result = resultValues.map(value => value === 'win' ? '✓' : value === 'loss' ? '✕' : value === 'pending' ? '⏳' : value).join(' ');
-      const resultClass = resultValues.includes('win') ? 'win' : resultValues.includes('loss') ? 'loss' : 'pending';
-      return `<tr><td class="date-cell"><div class="date-time">${m.kickoff_time || ''}</div></td><td>${m.league || '—'}</td><td><strong>${m.home_team}</strong> <span class="team-name">vs</span> <strong>${m.away_team}</strong>${score ? `<div class="score-pill">${score}</div>` : ''}</td><td class="table-pick">${pickValues.join('<br>')}</td><td class="table-status ${stateClass}">${status}</td><td class="table-result ${resultClass}">${result || '⏳'}</td></tr>`;
+      const result = m.is_locked ? '🔒' : renderResult(m);
+      const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
+      return `<tr><td class="date-cell"><div class="date-time">${m.kickoff_time || ''}</div></td><td>${m.league || '—'}</td><td><strong>${m.home_team}</strong> <span class="team-name">vs</span> <strong>${m.away_team}</strong>${score ? `<div class="score-pill">${score}</div>` : ''}</td><td class="table-pick">${pickValues.join('<br>')}</td><td class="table-status ${stateClass}">${renderStatus(m)}</td><td class="table-result ${resultClass}">${result}</td></tr>`;
     }).join('');
     renderStats();
   }
@@ -532,9 +548,9 @@
     body.innerHTML = rows.map(m => {
       const score = m.score || (m.home_score != null && m.away_score != null ? `${m.home_score} - ${m.away_score}` : '');
       const pick = m.is_locked ? '🔒 Subscriber pick' : (m.prediction_selection ? `${pickLabel(m.prediction_market, m.prediction_selection)}${selectedOdds(m)}` : '—');
-      const result = m.is_locked ? '🔒' : m.prediction_result === 'win' ? '✓' : m.prediction_result === 'loss' ? '✕' : '⏳';
+      const result = m.is_locked ? '🔒' : renderResult(m);
       const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
-      return `<tr><td class="date-cell"><div class="date-time">${m.match_date}</div><div class="date-status">${m.kickoff_time || ''}</div></td><td>${m.league || '—'}</td><td><strong>${m.home_team}</strong> <span class="team-name">vs</span> <strong>${m.away_team}</strong>${score ? `<div class="score-pill">${score}</div>` : ''}</td><td class="table-pick">${pick}</td><td class="table-status finished">FINISHED</td><td class="table-result ${resultClass}">${result}</td></tr>`;
+      return `<tr><td class="date-cell"><div class="date-time">${m.match_date}</div><div class="date-status">${m.kickoff_time || ''}</div></td><td>${m.league || '—'}</td><td><strong>${m.home_team}</strong> <span class="team-name">vs</span> <strong>${m.away_team}</strong>${score ? `<div class="score-pill">${score}</div>` : ''}</td><td class="table-pick">${pick}</td><td class="table-status finished">${renderStatus({ ...m, status:'finished' })}</td><td class="table-result ${resultClass}">${result}</td></tr>`;
     }).join('');
   }
 
@@ -606,7 +622,7 @@
     renderDateTabs();
     renderTable();
     renderHistory();
-  }, 120000);
+  }, 60000);
 </script>
 </body>
 </html>
