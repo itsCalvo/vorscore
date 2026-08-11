@@ -22,7 +22,11 @@
     --gold-dim: rgba(240,180,60,0.14);
     --teal: #23c8a8;
     --purple: #8a6cff;
+    --red: #ff5d5d;
+    --green: #2ed695;
     --card-radius: 16px;
+    --sidebar-width: 250px;
+    --shell-pad: 22px;
   }
   *{box-sizing:border-box;}
   html,body{
@@ -31,14 +35,28 @@
     font-family: 'Manrope', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
     color: var(--text);
     min-height:100vh;
+    overflow-x:hidden;
   }
-  .shell{ max-width:1500px; margin:0 auto; padding:22px; display:flex; }
+  .shell{ max-width:1500px; margin:0 auto; padding:var(--shell-pad); display:flex; gap:0; }
+  .menu-toggle{
+    display:none; align-items:center; justify-content:center; gap:8px;
+    background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-size:14px; font-weight:600; padding:10px 14px; cursor:pointer;
+    flex-shrink:0;
+  }
+  .menu-toggle svg{ width:20px; height:20px; }
+  .sidebar-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:90;
+    opacity:0; transition:opacity .2s ease; pointer-events:none;
+  }
+  .sidebar-backdrop.open{ opacity:1; pointer-events:auto; }
   /* Sidebar */
   .sidebar{
-    width:250px; flex-shrink:0;
+    width:var(--sidebar-width); flex-shrink:0;
     background: linear-gradient(180deg, #101c2e 0%, #0b1420 100%);
     border:1px solid var(--border); border-radius:20px; padding:22px 18px;
     display:flex; flex-direction:column; min-height:980px;
+    transition:transform .25s ease;
   }
   .logo{ display:flex; align-items:center; gap:10px; padding:6px 4px 26px 4px; }
   .logo-mark{ width:34px;height:34px; display:flex;align-items:center;justify-content:center; }
@@ -70,8 +88,9 @@
   .promo-btn:hover{ background:var(--gold); color:#1a1204; }
 
   /* Main */
-  .main{ flex:1; padding-left:22px; min-width:0; }
-  .topbar{ display:flex; align-items:center; gap:18px; margin-bottom:22px; }
+  .main{ flex:1; padding-left:22px; min-width:0; width:100%; }
+  .topbar{ display:flex; align-items:flex-start; gap:14px; margin-bottom:22px; flex-wrap:wrap; }
+  .topbar > div:first-child{ flex:1; min-width:0; }
   .topbar h1{ font-family:'Space Grotesk','Manrope',sans-serif; font-size:clamp(28px,3.4vw,48px); letter-spacing:-.03em; margin:0; }
   .hero-copy{ position:relative; min-height:310px; display:flex; align-items:end; overflow:hidden; margin:8px 0 24px; padding:34px; border:1px solid rgba(35,200,168,.25); border-radius:18px; background:radial-gradient(circle at 86% 20%, rgba(35,200,168,.22), transparent 30%), radial-gradient(circle at 58% 100%, rgba(240,180,60,.12), transparent 35%), linear-gradient(135deg,#102234 0%,#0c1726 58%,#101c2b 100%); }
   .hero-copy::after{ content:'VS'; position:absolute; right:7%; top:18%; color:rgba(255,255,255,.035); font-family:'Space Grotesk',sans-serif; font-size:clamp(100px,18vw,240px); font-weight:800; line-height:1; pointer-events:none; }
@@ -136,13 +155,19 @@
   .stat-label{ font-size:18px; font-weight:700; letter-spacing:0.2px; }
   .stat-value{ font-size:26px; font-weight:800; }
 
-  .tabs-row{ display:flex; align-items:center; gap:28px; margin-bottom:14px; border-bottom:1px solid var(--border); }
-  .tab{ padding:10px 2px 14px 2px; font-size:15px; color:var(--text-faint); cursor:pointer; position:relative; font-weight:600; }
+  .tabs-row{
+    display:flex; align-items:center; gap:28px; margin-bottom:14px; border-bottom:1px solid var(--border);
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  .tabs-row::-webkit-scrollbar{ display:none; }
+  .tab{ padding:10px 2px 14px 2px; font-size:15px; color:var(--text-faint); cursor:pointer; position:relative; font-weight:600; white-space:nowrap; flex-shrink:0; }
   .tab.active{ color:#fff; }
   .tab.active::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--gold); border-radius:2px; }
 
-  .table-wrap{ background:rgba(255,255,255,0.015); border:1px solid var(--border); border-radius:12px; overflow:hidden; overflow-x:auto; }
+  .table-wrap{ background:rgba(255,255,255,0.015); border:1px solid var(--border); border-radius:12px; overflow:hidden; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-scroll-hint{ display:none; font-size:11px; color:var(--text-faint); text-align:right; margin:0 0 8px; letter-spacing:.04em; }
   table{ width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+  table.responsive-table{ min-width:0; }
   thead th{ text-align:left; color:var(--text-dim); font-weight:700; font-size:11px; letter-spacing:.08em; text-transform:uppercase; padding:12px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
   tbody tr{ border-bottom:1px solid var(--border); }
   tbody tr:last-child{ border-bottom:none; }
@@ -183,6 +208,12 @@
   .table-result.win{ color:var(--green); }
   .table-result.loss{ color:var(--red); }
   .table-result.pending{ color:var(--text-dim); }
+  .history-archive{ display:grid; gap:28px; }
+  .history-day{ border-top:1px solid var(--border); padding-top:18px; }
+  .history-day:first-child{ border-top:0; padding-top:0; }
+  .history-day-head{ display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:10px; flex-wrap:wrap; }
+  .history-day-title{ margin:0; color:var(--text); font-family:'Space Grotesk','Manrope',sans-serif; font-size:18px; letter-spacing:-.02em; }
+  .history-day-count{ color:var(--text-faint); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
 
   /* Blog */
   .view{ display:none; }
@@ -228,23 +259,105 @@
   ::-webkit-scrollbar{ height:8px; width:8px; }
   ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.12); border-radius:8px; }
 
+  /* Tablet */
   @media (max-width: 1100px){
-    .shell{ flex-direction:column; }
-    .sidebar{ width:100%; min-height:auto; flex-direction:row; flex-wrap:wrap; }
-    .main{ padding-left:0; padding-top:20px; }
-    .stat-cards{ grid-template-columns:1fr; }
-    .promo-card{ display:none; }
-    nav.menu{ flex-direction:row; flex-wrap:wrap; }
+    .stat-cards{ grid-template-columns:repeat(2,1fr); }
     .blog-hero{ grid-template-columns:1fr; }
     .article-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   }
-  @media (max-width: 620px){ .article-grid{ grid-template-columns:1fr; } .blog-hero{ padding:22px; } .blog-search{ margin-left:0; max-width:none; } }
+
+  /* Mobile sidebar drawer */
+  @media (max-width: 900px){
+    :root{ --shell-pad: 16px; }
+    .shell{ flex-direction:column; position:relative; }
+    .menu-toggle{ display:inline-flex; }
+    .sidebar-backdrop{ display:block; }
+    .sidebar{
+      position:fixed; top:0; left:0; bottom:0; z-index:100;
+      width:min(280px, 86vw); min-height:100dvh; border-radius:0 20px 20px 0;
+      transform:translateX(-105%); box-shadow:8px 0 40px rgba(0,0,0,0.45);
+    }
+    .sidebar.open{ transform:translateX(0); }
+    .main{ padding-left:0; padding-top:0; }
+    .topbar{ margin-bottom:18px; }
+    .promo-card{ display:block; margin-top:18px; }
+    nav.menu{ flex-direction:column; flex:1; }
+    .nav-item{ min-height:44px; }
+    .hero-copy{ min-height:240px; padding:24px 20px; margin-bottom:20px; }
+    .hero-copy::after{ right:4%; top:10%; font-size:clamp(72px,22vw,140px); }
+    .banner{ flex-wrap:wrap; font-size:13px; padding:12px 14px; gap:10px; }
+    .banner .close{ margin-left:auto; }
+    .stat-cards{ grid-template-columns:1fr; gap:14px; margin-bottom:20px; }
+    .stat-card{ padding:22px 18px; }
+    .blog-toolbar{ flex-direction:column; align-items:stretch; }
+    .blog-search{ margin-left:0; max-width:none; width:100%; }
+    .article-reader{ padding:20px 16px; margin-top:24px; }
+    .article-reader h2{ font-size:24px; }
+    .history-day-title{ font-size:16px; }
+  }
+
+  /* Small phones */
+  @media (max-width: 620px){
+    :root{ --shell-pad: 12px; }
+    .logo-text{ font-size:16px; }
+    .topbar h1{ font-size:clamp(24px,7vw,32px); }
+    .hero-copy{ min-height:200px; padding:20px 16px; align-items:flex-end; }
+    .hero-copy h2{ font-size:clamp(26px,8vw,36px); }
+    .hero-copy p{ font-size:13px; margin-bottom:16px; }
+    .date-tabs{ gap:8px; margin-bottom:14px; }
+    .date-pill{ padding:8px 14px; font-size:12.5px; }
+    .tabs-row{ gap:18px; }
+    .tab{ font-size:14px; }
+    .article-grid{ grid-template-columns:1fr; }
+    .blog-hero{ padding:20px 16px; }
+    .featured-note{ align-self:stretch; }
+    .table-scroll-hint{ display:none; }
+
+    /* Card layout for match tables */
+    .table-wrap{ overflow:visible; background:transparent; border:none; }
+    table.responsive-table{ display:block; min-width:0; }
+    table.responsive-table thead{ display:none; }
+    table.responsive-table tbody{ display:flex; flex-direction:column; gap:12px; }
+    table.responsive-table tr{
+      display:grid; grid-template-columns:1fr 1fr; gap:8px 12px;
+      background:rgba(255,255,255,0.025); border:1px solid var(--border);
+      border-radius:12px; padding:14px;
+    }
+    table.responsive-table tr.empty-row{ display:block; text-align:center; }
+    table.responsive-table tr:hover{ background:rgba(255,255,255,0.04); }
+    table.responsive-table td{
+      display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+      padding:0; border:none; font-size:13px;
+    }
+    table.responsive-table td::before{
+      content:attr(data-label); font-size:10px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint);
+    }
+    table.responsive-table td[data-label="Match"]{ grid-column:1 / -1; }
+    table.responsive-table td[data-label="Pick"]{ grid-column:1 / -1; }
+    table.responsive-table .table-pick{ word-break:break-word; }
+  }
+
+  @media (max-width: 900px) and (min-width: 621px){
+    .table-scroll-hint{ display:block; }
+  }
+
+  @media (max-width: 380px){
+    .menu-toggle span{ display:none; }
+    .tabs-row{ gap:14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .sidebar, .sidebar-backdrop, .hero-cta, .stat-card, .article-card{ transition:none; }
+    .live-pill{ animation:none; }
+  }
 </style>
 </head>
 <body>
+<div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
 <div class="shell">
 
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="logo">
       <svg class="logo-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="9.5" stroke="#f0b43c" stroke-width="1.6"/>
@@ -287,6 +400,10 @@
   </aside>
 
   <main class="main">
+    <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <span>Menu</span>
+    </button>
     <div class="view active" id="dashboardView">
       <div class="topbar">
         <div>
@@ -319,18 +436,19 @@
       <div class="tab" data-cat="slip_of_day">Slip Of The Day</div>
     </div>
 
-      <div class="table-wrap" id="todayPicks"><table aria-label="Curated football predictions"><thead><tr><th>Time</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody></table></div>
+      <div class="table-scroll-hint">Swipe sideways to see all columns</div>
+      <div class="table-wrap" id="todayPicks"><table class="responsive-table" aria-label="Curated football predictions"><thead><tr><th>Time</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody></table></div>
     </div>
+
+    <section class="view" id="historyView" aria-labelledby="historyTitle">
+      <div class="topbar"><div><p class="eyebrow">The record</p><h1 id="historyTitle">History</h1></div><div class="avatar">↺</div></div>
+      <div id="historyArchive" class="history-archive"><div class="empty-row">Loading history…</div></div>
+    </section>
 
     <section class="view" id="blogView" aria-labelledby="blogTitle">
       <div class="blog-hero">
         <div>
           <p class="eyebrow">The VorScore Playbook</p>
-
-      <section class="view" id="historyView" aria-labelledby="historyTitle">
-        <div class="topbar"><div><p class="eyebrow">The record</p><h1 id="historyTitle">History</h1></div><div class="avatar">↺</div></div>
-        <div class="table-wrap"><table aria-label="Historical predictions"><thead><tr><th>Date</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody id="historyBody"><tr class="empty-row"><td colspan="6">Loading history…</td></tr></tbody></table></div>
-      </section>
           <h1 id="blogTitle">Smarter football predictions start here.</h1>
           <p>Match previews, betting explainers, and practical ways to read the numbers before kickoff. Built for fans who want a clearer process, not louder guesses.</p>
           <a class="blog-hero-link" href="#latestArticles">Explore latest guides <span aria-hidden="true">→</span></a>
@@ -521,6 +639,23 @@
     return '⏳';
   }
 
+  function matchRowCells(m){
+    const stateClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
+    const score = m.score || (m.home_score != null && m.away_score != null ? `${m.home_score} - ${m.away_score}` : '');
+    const pickValues = m.is_locked ? ['🔒 Subscriber pick'] : [m.prediction_selection ? `${pickLabel(m.prediction_market, m.prediction_selection)}${selectedOdds(m)}` : '—'];
+    const result = m.is_locked ? '🔒' : renderResult(m);
+    const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
+    const matchHtml = `<strong>${escapeHtml(m.home_team)}</strong> <span class="team-name">vs</span> <strong>${escapeHtml(m.away_team)}</strong>${score ? `<div class="score-pill">${escapeHtml(score)}</div>` : ''}`;
+    return {
+      time: `<td class="date-cell" data-label="Time"><div class="date-time">${escapeHtml(m.kickoff_time || '')}</div></td>`,
+      league: `<td data-label="League">${escapeHtml(m.league || '—')}</td>`,
+      match: `<td data-label="Match">${matchHtml}</td>`,
+      pick: `<td class="table-pick" data-label="Pick">${pickValues.join('<br>')}</td>`,
+      status: `<td class="table-status ${stateClass}" data-label="Status">${renderStatus(m)}</td>`,
+      result: `<td class="table-result ${resultClass}" data-label="Result">${result}</td>`,
+    };
+  }
+
   function renderTable(){
     const rows = allMatches.filter(m => !isHistorical(m) && m.match_date === activeDate && (activeCategory === 'all' || m.category === activeCategory));
     const tbody = document.getElementById('tableBody');
@@ -530,12 +665,8 @@
       return;
     }
     tbody.innerHTML = rows.map(m => {
-      const stateClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
-      const score = m.score || (m.home_score != null && m.away_score != null ? `${m.home_score} - ${m.away_score}` : '');
-      const pickValues = m.is_locked ? ['🔒 Subscriber pick'] : [m.prediction_selection ? `${pickLabel(m.prediction_market, m.prediction_selection)}${selectedOdds(m)}` : '—'];
-      const result = m.is_locked ? '🔒' : renderResult(m);
-      const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
-      return `<tr><td class="date-cell"><div class="date-time">${m.kickoff_time || ''}</div></td><td>${m.league || '—'}</td><td><strong>${m.home_team}</strong> <span class="team-name">vs</span> <strong>${m.away_team}</strong>${score ? `<div class="score-pill">${score}</div>` : ''}</td><td class="table-pick">${pickValues.join('<br>')}</td><td class="table-status ${stateClass}">${renderStatus(m)}</td><td class="table-result ${resultClass}">${result}</td></tr>`;
+      const cells = matchRowCells(m);
+      return `<tr>${cells.time}${cells.league}${cells.match}${cells.pick}${cells.status}${cells.result}</tr>`;
     }).join('');
     renderStats();
   }
@@ -543,15 +674,14 @@
   function renderHistory(){
     const today = new Date().toISOString().slice(0, 10);
     const rows = allMatches.filter(match => match.status === 'finished' || match.match_date < today).sort((first, second) => `${second.match_date}${second.kickoff_time || ''}`.localeCompare(`${first.match_date}${first.kickoff_time || ''}`));
-    const body = document.getElementById('historyBody');
-    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="6">No finished predictions yet.</td></tr>'; return; }
-    body.innerHTML = rows.map(m => {
-      const score = m.score || (m.home_score != null && m.away_score != null ? `${m.home_score} - ${m.away_score}` : '');
-      const pick = m.is_locked ? '🔒 Subscriber pick' : (m.prediction_selection ? `${pickLabel(m.prediction_market, m.prediction_selection)}${selectedOdds(m)}` : '—');
-      const result = m.is_locked ? '🔒' : renderResult(m);
-      const resultClass = m.prediction_result === 'win' ? 'win' : m.prediction_result === 'loss' ? 'loss' : 'pending';
-      return `<tr><td class="date-cell"><div class="date-time">${m.match_date}</div><div class="date-status">${m.kickoff_time || ''}</div></td><td>${m.league || '—'}</td><td><strong>${m.home_team}</strong> <span class="team-name">vs</span> <strong>${m.away_team}</strong>${score ? `<div class="score-pill">${score}</div>` : ''}</td><td class="table-pick">${pick}</td><td class="table-status finished">${renderStatus({ ...m, status:'finished' })}</td><td class="table-result ${resultClass}">${result}</td></tr>`;
-    }).join('');
+    const archive = document.getElementById('historyArchive');
+    if(!rows.length){ archive.innerHTML = '<div class="empty-row">No finished predictions yet.</div>'; return; }
+    const groups = rows.reduce((byDate, match) => { (byDate[match.match_date] ||= []).push(match); return byDate; }, {});
+    archive.innerHTML = Object.entries(groups).map(([date, matches]) => `<section class="history-day"><div class="history-day-head"><h2 class="history-day-title">${formatDateLabel(date)} <span class="team-name">· ${date}</span></h2><span class="history-day-count">${matches.length} ${matches.length === 1 ? 'pick' : 'picks'}</span></div><div class="table-scroll-hint">Swipe sideways to see all columns</div><div class="table-wrap"><table class="responsive-table" aria-label="Predictions from ${escapeHtml(date)}"><thead><tr><th>Time</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead><tbody>${matches.map(m => {
+      const cells = matchRowCells({ ...m, status:'finished' });
+      cells.status = `<td class="table-status finished" data-label="Status">${renderStatus({ ...m, status:'finished' })}</td>`;
+      return `<tr>${cells.time}${cells.league}${cells.match}${cells.pick}${cells.status}${cells.result}</tr>`;
+    }).join('')}</tbody></table></div></section>`).join('');
   }
 
   document.querySelectorAll('.tab').forEach(tab => {
@@ -567,8 +697,41 @@
   });
   function showView(viewName){
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === viewName + 'View'));
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === viewName && (viewName === 'blog' ? item.dataset.view === 'blog' : item === document.querySelector('.nav-item[data-view="dashboard"]'))));
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === viewName));
+    closeSidebar();
   }
+
+  const sidebar = document.getElementById('sidebar');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  const menuToggle = document.getElementById('menuToggle');
+
+  function openSidebar(){
+    sidebar.classList.add('open');
+    sidebarBackdrop.classList.add('open');
+    sidebarBackdrop.setAttribute('aria-hidden', 'false');
+    menuToggle.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSidebar(){
+    sidebar.classList.remove('open');
+    sidebarBackdrop.classList.remove('open');
+    sidebarBackdrop.setAttribute('aria-hidden', 'true');
+    menuToggle.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  menuToggle.addEventListener('click', () => {
+    if(sidebar.classList.contains('open')) closeSidebar();
+    else openSidebar();
+  });
+  sidebarBackdrop.addEventListener('click', closeSidebar);
+  window.addEventListener('keydown', event => {
+    if(event.key === 'Escape') closeSidebar();
+  });
+  window.addEventListener('resize', () => {
+    if(window.innerWidth > 900) closeSidebar();
+  });
 
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => showView(item.dataset.view));

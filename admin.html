@@ -121,7 +121,23 @@
   #fixtureDate::-webkit-calendar-picker-indicator{ filter:sepia(1) saturate(5); cursor:pointer; }
   .today-btn{ background:transparent; border:1px solid var(--border); color:var(--text-dim); padding:10px 12px; white-space:nowrap; }
   .today-btn:hover{ color:var(--text); border-color:var(--gold); }
-  @media(max-width:700px){ .grid{ grid-template-columns:1fr 1fr; } .grid .span2, .grid .span3{ grid-column: span 2; } .fixture-row{ gap:8px; font-size:13px; } .fixture-logo{ width:26px; height:26px; } }
+  @media(max-width:700px){
+    body{ padding:20px 14px; }
+    .topbar{ flex-wrap:wrap; gap:12px; }
+    .panel{ padding:18px 16px; }
+    .grid{ grid-template-columns:1fr 1fr; }
+    .grid .span2, .grid .span3{ grid-column: span 2; }
+    .form-actions{ flex-wrap:wrap; }
+    .fixture-row{ gap:8px; font-size:13px; flex-wrap:wrap; }
+    .fixture-logo{ width:26px; height:26px; }
+    .date-actions{ flex-wrap:wrap; }
+  }
+  @media(max-width:480px){
+    .grid{ grid-template-columns:1fr; }
+    .grid .span2, .grid .span3{ grid-column: span 1; }
+    #loginBox{ margin:40px auto; padding:24px 20px; }
+    .row-actions{ flex-wrap:wrap; }
+  }
 </style>
 </head>
 <body>
