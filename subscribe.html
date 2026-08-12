@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>VorScore Tips — Today's Tips</title>
-<meta name="description" content="Curated football predictions and betting tips from VorScore Tips.">
+<title>VorScore Tips — Subscribe</title>
+<meta name="description" content="Subscribe to VorScore Tips for full access to bankers, slips, and locked predictions.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body data-page="tips">
+<body data-page="subscribe">
 <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
 <div class="shell">
 
@@ -62,46 +61,47 @@
       <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
-      <div class="mobile-brand">Today's Tips</div>
+      <div class="mobile-brand">Subscribe</div>
     </header>
 
     <div class="topbar">
       <div>
-        <p class="eyebrow">Curated football predictions</p>
-        <h1>Today's Tips</h1>
+        <p class="eyebrow">Full access</p>
+        <h1>Subscribe</h1>
       </div>
-      <div class="avatar">⚽</div>
+      <div class="avatar">🔓</div>
     </div>
 
-    <section class="hero-copy" aria-labelledby="heroTitle">
+    <section class="hero-copy" aria-labelledby="subscribeTitle">
       <div class="hero-inner">
-        <p class="hero-kicker">The daily edge</p>
-        <h2 id="heroTitle">Fewer picks. Clearer conviction.</h2>
-        <p>Follow a focused slate of expert selections, updated from kickoff through full time. No noise, just the matches worth your attention.</p>
-        <a class="hero-cta" href="#todayPicks">View today's picks <span aria-hidden="true">→</span></a>
+        <p class="hero-kicker">Premium picks</p>
+        <h2 id="subscribeTitle">Unlock every banker &amp; slip.</h2>
+        <p>Get full access to locked tips, daily bankers, and the slip of the day — delivered before kickoff in East Africa Time.</p>
+        <a class="hero-cta" href="mailto:hello@vorscore.com?subject=VorScore%20Tips%20Subscription">Get started <span aria-hidden="true">→</span></a>
       </div>
     </section>
 
-    <div class="date-tabs" id="dateTabs"></div>
-
-    <div class="banner" id="banner">
-      <div class="rocket">🔮</div>
-      <div class="banner-text">Locked tips are for subscribers only — <a href="subscribe.html">subscribe here</a> to unlock every banker and slip.</div>
-      <div class="close" id="bannerClose" role="button" aria-label="Dismiss banner">✕</div>
+    <div class="stat-cards">
+      <div class="stat-card bankers">
+        <div class="stat-icon">🏦</div>
+        <div class="stat-label">Bankers</div>
+        <div class="stat-value">Daily</div>
+      </div>
+      <div class="stat-card upcoming">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-label">Slip of the Day</div>
+        <div class="stat-value">Curated</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-icon">📊</div>
+        <div class="stat-label">Track Record</div>
+        <div class="stat-value"><a href="history.html" style="color:inherit;text-decoration:none;">View →</a></div>
+      </div>
     </div>
 
-    <div class="tabs-row">
-      <div class="tab active" data-cat="all">All Picks</div>
-      <div class="tab" data-cat="banker">Bankers</div>
-      <div class="tab" data-cat="slip_of_day">Slip Of The Day</div>
-    </div>
-
-    <div class="table-scroll-hint">Swipe sideways to see all columns</div>
-    <div class="table-wrap" id="todayPicks">
-      <table class="responsive-table" aria-label="Curated football predictions">
-        <thead><tr><th>Time (EAT)</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead>
-        <tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody>
-      </table>
+    <div class="banner">
+      <div class="rocket">✉️</div>
+      <div class="banner-text">Contact us at <a href="mailto:hello@vorscore.com">hello@vorscore.com</a> to set up your subscription.</div>
     </div>
   </main>
 </div>
@@ -121,10 +121,6 @@
   </a>
 </nav>
 
-<script src="config.js"></script>
-<script src="lib/resolve-result.js"></script>
-<script src="js/match-data.js?v=9"></script>
 <script src="js/shell.js"></script>
-<script src="js/tips.js?v=7"></script>
 </body>
 </html>

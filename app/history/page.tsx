@@ -1,4 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  enrichMatchesFromFixtures,
+  historyDisplayStatus,
+  isMatchFinished,
+  matchScores,
+} from '@/lib/match-helpers';
 import { resolveResult } from '@/lib/resolve-result';
 
 type HistoryTip = {
@@ -10,6 +16,7 @@ type HistoryTip = {
   away_team: string;
   home_score: number | null;
   away_score: number | null;
+  score?: string | null;
   pick: string;
   status: string;
   api_status: string | null;
@@ -67,6 +74,7 @@ function toHistoryTip(row: Record<string, unknown>): HistoryTip {
     away_team: String(row.away_team ?? ''),
     home_score: row.home_score as number | null,
     away_score: row.away_score as number | null,
+    score: row.score as string | null,
     pick,
     status: String(row.status ?? 'upcoming'),
     api_status: (row.api_status as string | null) ?? null,
@@ -107,7 +115,8 @@ async function loadHistory(): Promise<HistoryTip[]> {
     .order('kickoff_time', { ascending: false });
 
   if (error || !data) return [];
-  return data.map(row => toHistoryTip(row as Record<string, unknown>));
+  const enriched = await enrichMatchesFromFixtures(supabase, data as Record<string, unknown>[]);
+  return enriched.map(row => toHistoryTip(row));
 }
 
 function HistoryTable({ tips }: { tips: HistoryTip[] }) {
@@ -126,13 +135,16 @@ function HistoryTable({ tips }: { tips: HistoryTip[] }) {
       </thead>
       <tbody>
         {tips.map(tip => {
+          const scores = matchScores(tip);
+          const effectiveStatus = isMatchFinished(tip) ? 'finished' : tip.status;
           const verdict = resolveResult(
             tip.pick,
-            tip.home_score,
-            tip.away_score,
-            tip.status,
-            tip.pick.includes('🔒'),
+            scores.home,
+            scores.away,
+            effectiveStatus,
+            tip.pick.includes('Subscriber pick'),
           );
+          const displayStatus = historyDisplayStatus(tip);
           const color = verdictClassName(verdict);
 
           return (
@@ -143,10 +155,10 @@ function HistoryTable({ tips }: { tips: HistoryTip[] }) {
                 <strong>{tip.home_team}</strong> vs <strong>{tip.away_team}</strong>
               </td>
               <td className="px-4 py-3">
-                {tip.home_score != null ? `${tip.home_score} : ${tip.away_score}` : '—'}
+                {scores.home != null ? `${scores.home} : ${scores.away}` : '—'}
               </td>
               <td className="px-4 py-3">{tip.pick}</td>
-              <td className="px-4 py-3">{tip.api_status === 'FT' ? 'FT' : tip.api_status ?? '—'}</td>
+              <td className="px-4 py-3">{displayStatus}</td>
               <td className={`px-4 py-3 ${color}`}>{verdict}</td>
             </tr>
           );

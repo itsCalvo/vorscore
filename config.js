@@ -10,10 +10,11 @@
 const SUPABASE_URL = "https://slwghupgnpmvcsuunftt.supabase.co"; // e.g. https://abcdefgh.supabase.co
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsd2dodXBnbnBtdmNzdXVuZnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzAwNDQsImV4cCI6MjEwMTcwNjA0NH0.-x0JQQyBFkctfIsNb7EQnbcWHVVRx49FAT2sJt6CxdA";
 
-// Leave as-is — used by both pages
-const supabaseClient = (SUPABASE_URL.startsWith("http"))
-  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const { createClient } = window.supabase || {};
+const supabaseClient = (typeof createClient === 'function' && SUPABASE_URL.startsWith("http"))
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
+console.log('[VorScore] config Supabase client', typeof supabaseClient?.from);
 
 // ============================================================
 // Timezone — all match times use East Africa Time (Kenya)
@@ -46,6 +47,28 @@ function isoToEatParts(iso){
 
 function todayEatDate(){
   return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE }).format(new Date());
+}
+
+/** Calendar date in Kenya using UTC+3 offset (matches auto-picker storage). */
+function kenyaIsoDate(){
+  const kenyaNow = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return kenyaNow.toISOString().slice(0, 10);
+}
+
+function predictionQueryDates(){
+  const eat = todayEatDate();
+  const kenya = kenyaIsoDate();
+  const utc = new Date().toISOString().slice(0, 10);
+  return [...new Set([eat, kenya, utc])];
+}
+
+function normalizeMatchDate(value){
+  if(!value) return "";
+  const text = String(value).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const date = new Date(text);
+  if(Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE }).format(date);
 }
 
 function formatKickoffEat(value, includeDate = false){
@@ -99,4 +122,54 @@ function formatHistoryDateHeading(dateStr){
     timeZone: APP_TIMEZONE,
   });
   return `${label} · ${dateStr}`;
+}
+
+const FINISHED_API_STATUSES = new Set(["FT", "AET", "PEN", "AWD", "WO"]);
+
+function isMatchFinished(match){
+  if(match.status === "finished" || FINISHED_API_STATUSES.has(match.api_status)) return true;
+  const scores = matchScores(match);
+  return scores.home != null && match.match_date < todayEatDate();
+}
+
+function matchScores(match){
+  if(match.home_score != null && match.away_score != null){
+    return { home: Number(match.home_score), away: Number(match.away_score) };
+  }
+  if(match.score){
+    const parts = String(match.score).match(/(\d+)\s*[:-\u2013]\s*(\d+)/);
+    if(parts) return { home: Number(parts[1]), away: Number(parts[2]) };
+  }
+  return { home: null, away: null };
+}
+
+function historyDisplayStatus(match){
+  return isMatchFinished(match) ? "FT" : (match.api_status || "—");
+}
+
+async function enrichMatchesFromFixtures(matches){
+  if(!supabaseClient || !matches?.length) return matches;
+  const ids = [...new Set(matches.map(match => match.external_match_id || match.fixture_id).filter(Boolean))];
+  if(!ids.length) return matches;
+
+  const { data: fixtures, error } = await supabaseClient
+    .from("fixtures")
+    .select("fixture_id, home_score, away_score, status, api_status")
+    .in("fixture_id", ids);
+
+  if(error || !fixtures?.length) return matches;
+
+  const byId = Object.fromEntries(fixtures.map(fixture => [String(fixture.fixture_id), fixture]));
+  matches.forEach(match => {
+    const fixture = byId[String(match.external_match_id || match.fixture_id)];
+    if(!fixture) return;
+    if(fixture.home_score != null) match.home_score = fixture.home_score;
+    if(fixture.away_score != null) match.away_score = fixture.away_score;
+    if(fixture.status) match.status = fixture.status;
+    if(fixture.api_status) match.api_status = fixture.api_status;
+    if(fixture.home_score != null && fixture.away_score != null){
+      match.score = `${fixture.home_score} : ${fixture.away_score}`;
+    }
+  });
+  return matches;
 }

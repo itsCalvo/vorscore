@@ -158,7 +158,7 @@
   <div class="topbar">
     <div>
       <h1>VorScore <span class="gold">Admin</span></h1>
-      <div class="sub">Add, edit, and publish match predictions</div>
+      <div class="sub">Select fixtures, set picks, and publish predictions</div>
     </div>
     <div>
       <button class="diagnostic-btn" id="dashboardDiagnosticBtn" type="button">Check session</button>
@@ -190,7 +190,7 @@
       </div>
       <div>
         <label>Publication</label>
-        <select id="f_publication_status"><option value="draft">Save as draft</option><option value="published">Publish publicly</option></select>
+        <select id="f_publication_status"><option value="published">Publish publicly</option><option value="draft">Save as draft</option></select>
       </div>
     </div>
 
@@ -201,11 +201,12 @@
     <div class="status-msg" id="formStatus"></div>
   </div>
 
-  <div class="panel">
-    <h2>All matches <span id="trackingSummary" class="match-status"></span></h2>
+  <div class="panel" id="draftsPanel">
+    <h2>Draft picks</h2>
+    <p class="blog-help">Only unpublished drafts appear here. Published picks show on the public site — view results in <a href="history.html" style="color:var(--gold)">History</a>.</p>
     <table>
-      <thead><tr><th>Date</th><th>Match</th><th>Category</th><th>Access</th><th>Result</th><th></th></tr></thead>
-      <tbody id="matchList"></tbody>
+      <thead><tr><th>Date</th><th>Match</th><th>Pick</th><th>Category</th><th></th></tr></thead>
+      <tbody id="draftList"></tbody>
     </table>
   </div>
 
@@ -322,7 +323,7 @@
   function showDash(){
     document.getElementById('loginBox').style.display = 'none';
     document.getElementById('dash').style.display = 'block';
-    loadMatches();
+    loadDrafts();
     loadBlogPosts();
     initializeFixtureAutocomplete();
   }
@@ -330,14 +331,18 @@
   function collectForm(){
     const fixture = selectedFixture || {};
     const legacy = editingMatch || {};
+    const fixtureDate = document.getElementById('fixtureDate').value || todayDate();
     const [predictionMarket = '', predictionSelection = ''] = document.getElementById('f_prediction_pick').value.split(':');
+    const eatParts = fixture.kickoff ? isoToEatParts(fixture.kickoff) : { match_date: legacy.match_date || fixtureDate, kickoff_time: legacy.kickoff_time || '' };
+    const lifecycle = fixture.lifecycle_status || legacy.status || 'upcoming';
+    const matchStatus = lifecycle === 'finished' ? 'finished' : lifecycle === 'live' ? 'live' : 'upcoming';
     return {
       external_match_id: fixture.fixture_id || legacy.external_match_id || null,
       api_provider: fixture.fixture_id ? 'api-football' : (legacy.api_provider || 'manual'),
-      api_status: fixture.api_status || legacy.api_status || null,
-      match_date: fixture.kickoff ? isoToEatParts(fixture.kickoff).match_date : legacy.match_date,
-      kickoff_time: fixture.kickoff ? isoToEatParts(fixture.kickoff).kickoff_time : (legacy.kickoff_time || ''),
-      status: fixture.fixture_id ? 'upcoming' : (legacy.status || 'upcoming'),
+      api_status: fixture.api_status || legacy.api_status || 'NS',
+      match_date: normalizeMatchDate(eatParts.match_date || fixtureDate),
+      kickoff_time: eatParts.kickoff_time || legacy.kickoff_time || '',
+      status: matchStatus,
       competition_id: fixture.league?.id || fixture.league_id || legacy.competition_id || null,
       competition_country: fixture.league?.country || fixture.country || legacy.competition_country || null,
       league: fixture.league?.name || fixture.league || legacy.league || null,
@@ -408,6 +413,12 @@
     document.getElementById('kickoff-time').value = '';
     document.getElementById('formTitle').textContent = 'Add a new match';
     document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('f_prediction_pick').value = '';
+    document.getElementById('f_trust').value = '';
+    document.getElementById('f_best_sub').value = '';
+    document.getElementById('f_category').value = 'banker';
+    document.getElementById('f_locked').value = 'true';
+    document.getElementById('f_publication_status').value = 'published';
   }
 
   document.getElementById('cancelBtn').onclick = resetForm;
@@ -478,16 +489,22 @@
   }
 
   async function searchLocalFixtures(query, date){
+    if(!date) return [];
     const normalized = normalizeQuery(query);
-    if(!normalized || !date) return [];
-    const pattern = `%${normalized.replace(/[%,_]/g, '')}%`;
-    const { data, error } = await supabaseClient
+    const pattern = normalized ? `%${normalized.replace(/[%,_]/g, '')}%` : '';
+
+    let request = supabaseClient
       .from('fixtures')
       .select('*')
       .eq('fixture_date', date)
-      .or(`home_team.ilike.${pattern},away_team.ilike.${pattern},league.ilike.${pattern},country.ilike.${pattern}`)
       .order('kickoff', { ascending: true })
       .limit(10);
+
+    if(pattern.trim()){
+      request = request.or(`home_team.ilike.${pattern},away_team.ilike.${pattern},league.ilike.${pattern},country.ilike.${pattern}`);
+    }
+
+    const { data, error } = await request;
 
     if (error) throw error;
     return data || [];
@@ -799,31 +816,49 @@
       statusEl.className = 'status-msg err';
       return;
     }
-    statusEl.textContent = editingId ? 'Match updated.' : 'Match saved and published.';
+    statusEl.textContent = editingId
+      ? 'Match updated.'
+      : (payload.publication_status === 'published' ? 'Match published — it will appear on the public site.' : 'Draft saved — publish it to show on the public site.');
     statusEl.className = 'status-msg ok';
     resetForm();
-    loadMatches();
+    loadDrafts();
   };
 
-  async function loadMatches(){
-    const { data, error } = await supabaseClient.from('matches').select('*').order('match_date', { ascending:false }).order('kickoff_time');
-    const tbody = document.getElementById('matchList');
-    if(error){ tbody.innerHTML = `<tr><td colspan="6">${error.message}</td></tr>`; return; }
-    if(!data.length){ tbody.innerHTML = `<tr><td colspan="6">No matches yet — add your first one above.</td></tr>`; return; }
-    const counts = data.reduce((summary, match) => { summary[match.status] = (summary[match.status] || 0) + 1; return summary; }, {});
-    document.getElementById('trackingSummary').textContent = `Upcoming ${counts.upcoming || 0} · Live ${counts.live || 0} · Finished ${counts.finished || 0}`;
+  function pickLabel(market, selection){
+    if(!selection) return '—';
+    const labels = { OVER_2_5:'OVER 2.5', UNDER_2_5:'UNDER 2.5', YES:'GG YES', NO:'GG NO', HOME:'HOME', DRAW:'DRAW', AWAY:'AWAY' };
+    return labels[selection] || selection.replaceAll('_', ' ');
+  }
+
+  async function loadDrafts(){
+    const { data, error } = await supabaseClient.from('matches').select('*').eq('publication_status', 'draft').order('match_date', { ascending:false }).order('kickoff_time');
+    const tbody = document.getElementById('draftList');
+    if(error){ tbody.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; return; }
+    if(!data.length){ tbody.innerHTML = `<tr><td colspan="5">No drafts — new picks publish straight to the site unless you choose "Save as draft".</td></tr>`; return; }
     tbody.innerHTML = data.map(m => `
       <tr>
         <td>${m.match_date}<br><span style="color:var(--text-dim)">${formatStoredKickoffEat(m.kickoff_time)}</span></td>
-        <td>${m.home_team} vs ${m.away_team}<div class="match-status ${m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : ''}">${m.status === 'live' ? `LIVE${m.current_minute ? ` ${m.current_minute}'` : ''}` : m.status === 'finished' ? `FT${m.score ? ` · ${m.score}` : ''}` : 'Upcoming'}</div></td>
+        <td>${m.home_team} vs ${m.away_team}${m.league ? `<div class="match-status">${m.league}</div>` : ''}</td>
+        <td>${pickLabel(m.prediction_market, m.prediction_selection)}</td>
         <td>${m.category === 'slip_of_day' ? 'Slip Of The Day' : 'Banker'}</td>
-        <td><span class="badge ${m.is_locked ? 'locked' : 'open'}">${m.is_locked ? 'Locked' : 'Open'}</span></td>
-        <td>${m.result === 'win' ? '✅ Win' : m.result === 'loss' ? '❌ Loss' : '⏳ Pending'}${m.goals_result ? `<br>Goals: ${m.goals_result}` : ''}${m.btts_result ? `<br>BTTS: ${m.btts_result}` : ''}</td>
         <td class="row-actions">
           <span class="icon-link" onclick='editMatch(${JSON.stringify(m).replace(/'/g,"&#39;")})'>Edit</span>
+          <span class="icon-link" onclick='publishDraft(${JSON.stringify(m).replace(/'/g,"&#39;")})'>Publish</span>
           <span class="icon-link danger" data-id="${m.id}" onclick="deleteMatch('${m.id}')">Delete</span>
         </td>
       </tr>`).join('');
+  }
+
+  async function publishDraft(match){
+    const { error } = await supabaseClient.from('matches').update({ publication_status: 'published' }).eq('id', match.id);
+    if(error){
+      document.getElementById('formStatus').textContent = error.message;
+      document.getElementById('formStatus').className = 'status-msg err';
+      return;
+    }
+    document.getElementById('formStatus').textContent = `${match.home_team} vs ${match.away_team} is now live on the public site.`;
+    document.getElementById('formStatus').className = 'status-msg ok';
+    loadDrafts();
   }
 
   function editMatch(m){
@@ -838,10 +873,10 @@
   async function deleteMatch(id){
     if(!confirm('Delete this match? This cannot be undone.')) return;
     await supabaseClient.from('matches').delete().eq('id', id);
-    loadMatches();
+    loadDrafts();
   }
 
-  setInterval(() => { if(document.getElementById('dash').style.display === 'block') loadMatches(); }, 120000);
+  setInterval(() => { if(document.getElementById('dash').style.display === 'block') loadDrafts(); }, 120000);
 
   checkSession();
 </script>

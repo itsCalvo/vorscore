@@ -1,43 +1,38 @@
 export function resolveResult(
   pick: string,
-  homeScore: number | null | undefined,
-  awayScore: number | null | undefined,
+  homeScore: number | null,
+  awayScore: number | null,
   status: string,
-  locked: boolean,
+  locked = false,
 ): string {
-  if (locked || pick.includes('🔒')) return '🔒 Locked';
+  if (locked) return '🔒 Locked';
+
   if (status !== 'finished') return '⏳ Pending';
 
   if (homeScore == null || awayScore == null) return '⏳ Pending';
 
-  const normalizedPick = pick.trim().toUpperCase();
-  let won: boolean | null = null;
+  const total = homeScore + awayScore;
 
-  switch (normalizedPick) {
+  switch (pick.toUpperCase()) {
     case 'HOME':
-      won = homeScore > awayScore;
-      break;
+      return homeScore > awayScore ? '✅ WIN' : '❌ LOSS';
+
     case 'DRAW':
-      won = homeScore === awayScore;
-      break;
+      return homeScore === awayScore ? '✅ WIN' : '❌ LOSS';
+
     case 'AWAY':
-      won = awayScore > homeScore;
-      break;
+      return awayScore > homeScore ? '✅ WIN' : '❌ LOSS';
+
     case 'GG YES':
-      won = homeScore >= 1 && awayScore >= 1;
-      break;
-    case 'GG NO':
-      won = homeScore === 0 || awayScore === 0;
-      break;
+      return homeScore > 0 && awayScore > 0 ? '✅ WIN' : '❌ LOSS';
+
     case 'OVER 2.5':
-      won = homeScore + awayScore >= 3;
-      break;
+      return total >= 3 ? '✅ WIN' : '❌ LOSS';
+
     case 'UNDER 2.5':
-      won = homeScore + awayScore < 3;
-      break;
+      return total < 3 ? '✅ WIN' : '❌ LOSS';
+
     default:
       return '⏳ Pending';
   }
-
-  return won ? '✅ WIN' : '❌ LOSS';
 }

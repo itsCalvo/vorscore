@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>VorScore Tips — Today's Tips</title>
-<meta name="description" content="Curated football predictions and betting tips from VorScore Tips.">
+<title>VorScore Tips — History</title>
+<meta name="description" content="Track record and past football predictions from VorScore Tips.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body data-page="tips">
+<body data-page="history">
 <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
 <div class="shell">
 
@@ -62,47 +62,24 @@
       <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
-      <div class="mobile-brand">Today's Tips</div>
+      <div class="mobile-brand">History</div>
     </header>
 
     <div class="topbar">
       <div>
-        <p class="eyebrow">Curated football predictions</p>
-        <h1>Today's Tips</h1>
+        <p class="eyebrow">The record</p>
+        <h1 id="historyTitle">History</h1>
       </div>
-      <div class="avatar">⚽</div>
+      <div class="avatar">↺</div>
     </div>
 
-    <section class="hero-copy" aria-labelledby="heroTitle">
-      <div class="hero-inner">
-        <p class="hero-kicker">The daily edge</p>
-        <h2 id="heroTitle">Fewer picks. Clearer conviction.</h2>
-        <p>Follow a focused slate of expert selections, updated from kickoff through full time. No noise, just the matches worth your attention.</p>
-        <a class="hero-cta" href="#todayPicks">View today's picks <span aria-hidden="true">→</span></a>
-      </div>
-    </section>
-
-    <div class="date-tabs" id="dateTabs"></div>
-
-    <div class="banner" id="banner">
-      <div class="rocket">🔮</div>
-      <div class="banner-text">Locked tips are for subscribers only — <a href="subscribe.html">subscribe here</a> to unlock every banker and slip.</div>
-      <div class="close" id="bannerClose" role="button" aria-label="Dismiss banner">✕</div>
+    <div class="date-tabs" id="historyDateTabs" aria-label="History dates"></div>
+    <div class="history-nav" id="historyNav" hidden>
+      <button type="button" class="history-nav-btn" id="historyPrev" aria-label="Older date">← Older</button>
+      <span class="history-nav-label" id="historyNavLabel"></span>
+      <button type="button" class="history-nav-btn" id="historyNext" aria-label="Newer date">Newer →</button>
     </div>
-
-    <div class="tabs-row">
-      <div class="tab active" data-cat="all">All Picks</div>
-      <div class="tab" data-cat="banker">Bankers</div>
-      <div class="tab" data-cat="slip_of_day">Slip Of The Day</div>
-    </div>
-
-    <div class="table-scroll-hint">Swipe sideways to see all columns</div>
-    <div class="table-wrap" id="todayPicks">
-      <table class="responsive-table" aria-label="Curated football predictions">
-        <thead><tr><th>Time (EAT)</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead>
-        <tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody>
-      </table>
-    </div>
+    <div id="historyArchive" class="history-archive"><div class="empty-row">Loading history…</div></div>
   </main>
 </div>
 
@@ -123,8 +100,8 @@
 
 <script src="config.js"></script>
 <script src="lib/resolve-result.js"></script>
-<script src="js/match-data.js?v=9"></script>
+<script src="js/match-data.js"></script>
 <script src="js/shell.js"></script>
-<script src="js/tips.js?v=7"></script>
+<script src="js/history.js"></script>
 </body>
 </html>

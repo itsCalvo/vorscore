@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>VorScore Tips — Today's Tips</title>
-<meta name="description" content="Curated football predictions and betting tips from VorScore Tips.">
+<title>VorScore Tips — Blog</title>
+<meta name="description" content="Football prediction guides, betting explainers, and match analysis from VorScore Tips.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body data-page="tips">
+<body data-page="blog">
 <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
 <div class="shell">
 
@@ -62,47 +62,45 @@
       <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
-      <div class="mobile-brand">Today's Tips</div>
+      <div class="mobile-brand">Blog</div>
     </header>
 
-    <div class="topbar">
+    <div class="blog-hero">
       <div>
-        <p class="eyebrow">Curated football predictions</p>
-        <h1>Today's Tips</h1>
+        <p class="eyebrow">The VorScore Playbook</p>
+        <h1 id="blogTitle">Smarter football predictions start here.</h1>
+        <p>Match previews, betting explainers, and practical ways to read the numbers before kickoff. Built for fans who want a clearer process, not louder guesses.</p>
+        <a class="blog-hero-link" href="#latestArticles">Explore latest guides <span aria-hidden="true">→</span></a>
       </div>
-      <div class="avatar">⚽</div>
-    </div>
-
-    <section class="hero-copy" aria-labelledby="heroTitle">
-      <div class="hero-inner">
-        <p class="hero-kicker">The daily edge</p>
-        <h2 id="heroTitle">Fewer picks. Clearer conviction.</h2>
-        <p>Follow a focused slate of expert selections, updated from kickoff through full time. No noise, just the matches worth your attention.</p>
-        <a class="hero-cta" href="#todayPicks">View today's picks <span aria-hidden="true">→</span></a>
+      <div class="featured-note">
+        <strong>Featured guide: How to read football odds before you place a bet</strong>
+        <span>6 min read · Beginner friendly</span>
       </div>
-    </section>
-
-    <div class="date-tabs" id="dateTabs"></div>
-
-    <div class="banner" id="banner">
-      <div class="rocket">🔮</div>
-      <div class="banner-text">Locked tips are for subscribers only — <a href="subscribe.html">subscribe here</a> to unlock every banker and slip.</div>
-      <div class="close" id="bannerClose" role="button" aria-label="Dismiss banner">✕</div>
     </div>
 
-    <div class="tabs-row">
-      <div class="tab active" data-cat="all">All Picks</div>
-      <div class="tab" data-cat="banker">Bankers</div>
-      <div class="tab" data-cat="slip_of_day">Slip Of The Day</div>
+    <div class="blog-toolbar" id="latestArticles">
+      <div class="topic-filter" aria-label="Filter articles">
+        <button class="topic-btn active" data-topic="all">All guides</button>
+        <button class="topic-btn" data-topic="analysis">Match analysis</button>
+        <button class="topic-btn" data-topic="strategy">Strategy</button>
+        <button class="topic-btn" data-topic="explainer">Explainers</button>
+      </div>
+      <div class="search blog-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="articleSearch" type="search" placeholder="Search the playbook" aria-label="Search the playbook">
+      </div>
     </div>
 
-    <div class="table-scroll-hint">Swipe sideways to see all columns</div>
-    <div class="table-wrap" id="todayPicks">
-      <table class="responsive-table" aria-label="Curated football predictions">
-        <thead><tr><th>Time (EAT)</th><th>League</th><th>Match</th><th>Pick</th><th>Status</th><th>Result</th></tr></thead>
-        <tbody id="tableBody"><tr class="empty-row"><td colspan="6">Loading tips…</td></tr></tbody>
-      </table>
-    </div>
+    <div class="article-grid" id="articleGrid"><p class="blog-empty">Loading guides...</p></div>
+    <div class="archives-heading" id="archivesHeading" hidden><p class="eyebrow">The back catalogue</p><h2>Archives</h2></div>
+    <div class="article-grid" id="archiveGrid"></div>
+    <p class="blog-empty" id="blogEmpty" hidden>No guides match that search yet.</p>
+    <article class="article-reader" id="articleReader" hidden>
+      <button class="reader-close" id="readerClose" type="button">Close</button>
+      <div class="article-meta" id="readerMeta"></div>
+      <h2 id="readerTitle"></h2>
+      <p class="reader-content" id="readerContent"></p>
+    </article>
   </main>
 </div>
 
@@ -122,9 +120,9 @@
 </nav>
 
 <script src="config.js"></script>
-<script src="lib/resolve-result.js"></script>
-<script src="js/match-data.js?v=9"></script>
+<script src="config.js"></script>
+<script src="js/match-data.js"></script>
 <script src="js/shell.js"></script>
-<script src="js/tips.js?v=7"></script>
+<script src="js/blog.js"></script>
 </body>
 </html>
