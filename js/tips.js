@@ -14,13 +14,16 @@
       const matchHtml = home && away
         ? `<strong>${VorScore.escapeHtml(home)}</strong> <span class="team-name">vs</span> <strong>${VorScore.escapeHtml(away)}</strong>`
         : VorScore.escapeHtml(p.match || '—');
-      return `<tr>
-        <td class="date-cell" data-label="Time (EAT)"><div class="date-time">${VorScore.escapeHtml(p.time)}</div></td>
-        <td data-label="League">${VorScore.escapeHtml(p.league || '—')}</td>
-        <td data-label="Match">${matchHtml}</td>
-        <td class="table-pick" data-label="Pick">${VorScore.escapeHtml(p.pick)}</td>
-        <td class="table-status" data-label="Status"><span class="upcoming-pill">${VorScore.escapeHtml(p.status)}</span></td>
-        <td class="table-result pending" data-label="Result">${p.result}</td>
+      const scoreHtml = (p.home_score != null && p.away_score != null)
+        ? `<div class="score-pill">${VorScore.escapeHtml(p.home_score)} : ${VorScore.escapeHtml(p.away_score)}</div>`
+        : '';
+        return `<tr>
+          <td class="date-cell" data-label="Time (EAT)"><div class="date-time">${VorScore.escapeHtml(p.time ?? '—')}</div></td>
+          <td data-label="League">${VorScore.escapeHtml(p.league ?? '—')}</td>
+          <td data-label="Match">${matchHtml}${scoreHtml}</td>
+          <td class="table-pick" data-label="Pick">${VorScore.escapeHtml(p.pick ?? '—')}</td>
+        <td class="table-status" data-label="Status"><span class="status-pill">${VorScore.escapeHtml(p.status_text ?? p.status ?? '⏳ UPCOMING')}</span></td>
+        <td class="table-result pending" data-label="Result">${VorScore.escapeHtml(p.result_text ?? (p.result === 'win' ? '✅ WIN' : p.result === 'loss' ? '❌ LOSS' : '⏳ PENDING'))}</td>
       </tr>`;
     }).join('');
   }
@@ -37,7 +40,7 @@
     const rows = picks ?? window.vorScoreData?.slipOfTheDay ?? [];
     renderPickRows(rows.map(p => ({
       ...p,
-      pick: p.confidence != null ? `${p.pick} — ${Math.round(Number(p.confidence))}%` : p.pick,
+      pick: p.confidence != null ? `${p.pick ?? '—'} — ${Math.round(Number(p.confidence))}%` : (p.pick ?? '—'),
     })));
   }
 

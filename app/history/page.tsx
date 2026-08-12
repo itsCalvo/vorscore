@@ -20,6 +20,7 @@ type HistoryTip = {
   pick: string;
   status: string;
   api_status: string | null;
+  final_status?: string | null;
 };
 
 const PICK_LABELS: Record<string, string> = {
@@ -78,6 +79,9 @@ function toHistoryTip(row: Record<string, unknown>): HistoryTip {
     pick,
     status: String(row.status ?? 'upcoming'),
     api_status: (row.api_status as string | null) ?? null,
+    // prefer fixture-level status when present
+    fixture_status: (row as any).fixture_status ?? (row as any).fixtures?.status ?? null,
+    final_status: (row.final_status as string | null) ?? null,
   };
 }
 
@@ -144,7 +148,7 @@ function HistoryTable({ tips }: { tips: HistoryTip[] }) {
             effectiveStatus,
             tip.pick.includes('Subscriber pick'),
           );
-          const displayStatus = historyDisplayStatus(tip);
+          const displayStatus = (tip.fixture_status ?? tip.final_status ?? historyDisplayStatus(tip));
           const color = verdictClassName(verdict);
 
           return (
@@ -157,7 +161,7 @@ function HistoryTable({ tips }: { tips: HistoryTip[] }) {
               <td className="px-4 py-3">
                 {scores.home != null ? `${scores.home} : ${scores.away}` : '—'}
               </td>
-              <td className="px-4 py-3">{tip.pick}</td>
+              <td className="px-4 py-3">{tip.pick ?? '—'}</td>
               <td className="px-4 py-3">{displayStatus}</td>
               <td className={`px-4 py-3 ${color}`}>{verdict}</td>
             </tr>

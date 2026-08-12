@@ -28,16 +28,10 @@ window.VorScore = window.VorScore || {};
 
   let allMatches = [];
   let automaticPicks = [];
+  let automaticPickRows = [];
   let activePredictionDate = null;
 
-  const sampleMatches = [
-    { match_date: "2026-08-09", kickoff_time:"16:00", status:"finished", api_status:"FT", league:"Premier League", home_team:"Arsenal", away_team:"Chelsea", home_score:2, away_score:0, score:"2 : 0", prediction_market:"1X2", prediction_selection:"DRAW", odds_home:2.1, odds_draw:3.4, odds_away:3.2, trust_score:8, category:"banker", is_locked:false },
-    { match_date: "2026-08-09", kickoff_time:"18:30", status:"finished", api_status:"FT", league:"La Liga", home_team:"Barcelona", away_team:"Sevilla", home_score:1, away_score:2, score:"1 : 2", prediction_market:"GOALS", prediction_selection:"OVER_2_5", odds_home:1.5, odds_draw:4.2, odds_away:5.5, trust_score:9, category:"banker", is_locked:false },
-    { match_date: "2026-08-09", kickoff_time:"21:00", status:"finished", api_status:"FT", league:"Serie A", home_team:"Inter", away_team:"Milan", home_score:1, away_score:1, score:"1 : 1", prediction_market:"BTTS", prediction_selection:"YES", odds_home:2.0, odds_draw:3.3, odds_away:3.6, trust_score:7, category:"slip_of_day", is_locked:false },
-    { match_date: todayEatDate(), kickoff_time:"03:30", status:"finished", api_status:"FT", home_team:"Sacachspas", away_team:"Deportivo", home_score:1, away_score:2, score:"1 : 2", prediction_market:"GOALS", prediction_selection:"UNDER_2_5", odds_home:1.3, odds_draw:5, odds_away:2.3, tip:"2.3", tip_sub:"2", goals_tip:"1.37", goals_sub:"U2.5", gg_tip:"1.56", gg_sub:"NO", best_tip:"1.37", best_sub:"U2.5", trust_score:10, category:"banker", is_locked:false },
-    { match_date: todayEatDate(), kickoff_time:"04:15", status:"finished", api_status:"FT", home_team:"Vikingur", away_team:"KR Reyljavik", home_score:3, away_score:2, score:"3 : 2", prediction_market:"GOALS", prediction_selection:"OVER_2_5", odds_home:1.62, odds_draw:4.55, odds_away:4, tip:"1.62", tip_sub:"1", goals_tip:"1.2", goals_sub:"O2.5", gg_tip:"1.25", gg_sub:"Yes", best_tip:"1.2", best_sub:"O2.5", trust_score:9, category:"banker", is_locked:false },
-    { match_date: todayEatDate(), kickoff_time:"22:00", status:"upcoming", api_status:"NS", home_team:"Arsenal", away_team:"Chelsea", home_score:null, away_score:null, score:null, prediction_market:"BTTS", prediction_selection:"YES", odds_home:2.1, odds_draw:3.4, odds_away:3.2, tip:"1.9", tip_sub:"1", goals_tip:"1.4", goals_sub:"O2.5", gg_tip:"1.5", gg_sub:"Yes", best_tip:"1.4", best_sub:"O2.5", trust_score:8, category:"banker", is_locked:true },
-  ];
+  // static sample matches removed — Home page will always fetch live Supabase data
 
   function escapeHtml(value){
     return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[character]));
@@ -56,17 +50,20 @@ window.VorScore = window.VorScore || {};
   }
 
   function renderStatus(match){
-    if(match.status === 'live'){
+    const effective = String(match.final_status ?? match.fixture_status ?? match.api_status ?? match.status ?? '').toLowerCase();
+    if(effective === 'live' || effective === '1h' || effective === '2h' || effective.includes('live')){
       return `<span class="live-pill">🔴 LIVE ${match.current_minute ?? ''}'</span>`;
     }
-    if(match.status === 'finished') return '<span class="finished-pill">FT</span>';
+    if(effective === 'ht') return '<span class="halftime-pill">HT</span>';
+    if(effective === 'ft' || effective === 'finished') return '<span class="finished-pill">FT</span>';
     return '<span class="upcoming-pill">UPCOMING</span>';
   }
 
   function renderResult(match){
     if(match.is_locked) return '🔒';
-    if(match.prediction_result === 'win') return '✅ WIN';
-    if(match.prediction_result === 'loss') return '❌ LOSS';
+    const verdictVal = String(match.verdict ?? match.result ?? match.prediction_result ?? '').toLowerCase();
+    if(verdictVal === 'win') return '✅ WIN';
+    if(verdictVal === 'loss') return '❌ LOSS';
     const pick = displayPick(match);
     if(!pick || pick === '—') return '⏳';
     const scores = matchScores(match);
@@ -148,6 +145,27 @@ window.VorScore = window.VorScore || {};
     return { market: row.market || null, selection: raw };
   }
 
+  function getPredictionResult(match){
+    const outcome = (match?.verdict || match?.result || 'PENDING')?.toString().toUpperCase();
+    switch(outcome){
+      case 'WIN':
+        return { icon: '✅', label: 'WIN', className: 'result-win' };
+      case 'LOSS':
+        return { icon: '❌', label: 'LOSS', className: 'result-loss' };
+      default:
+        return { icon: '⏳', label: 'PENDING', className: 'result-pending' };
+    }
+  }
+
+  function getMatchStatus(statusVal){
+    const s = String(statusVal ?? '').toUpperCase();
+    if(!s || s === 'NS') return { icon: '⏳', label: 'UPCOMING', className: 'status-upcoming' };
+    if(s === '1H' || s === '2H' || s === 'LIVE') return { icon: '🔴', label: 'LIVE', className: 'status-live' };
+    if(s === 'HT') return { icon: '⏸', label: 'HALFTIME', className: 'status-halftime' };
+    if(s === 'FT' || s === 'FINISHED') return { icon: '🏁', label: 'FINISHED', className: 'status-finished' };
+    return { icon: '', label: s, className: 'status-upcoming' };
+  }
+
   function normalizePredictionCategory(category){
     if(category === 'bankers') return 'bankers';
     if(category === 'banker') return 'banker';
@@ -175,11 +193,15 @@ window.VorScore = window.VorScore || {};
       trust_score: row.confidence ?? row.trust_score ?? null,
       is_locked: row.is_locked ?? false,
       publication_status: 'published',
-      status: row.status ?? 'upcoming',
+      // use prediction-level values for rendering on Home
+      fixture_status: row.fixture_status ?? null,
       api_status: row.api_status ?? null,
       home_score: row.home_score ?? null,
       away_score: row.away_score ?? null,
-      score: row.score ?? null,
+      score: (row.home_score != null && row.away_score != null) ? `${row.home_score} : ${row.away_score}` : (row.score ?? null),
+      prediction_result: row.result ?? row.verdict ?? null,
+      final_status: row.final_status ?? null,
+      verdict: row.verdict ?? null,
       source: 'automatic',
     });
   }
@@ -207,69 +229,74 @@ window.VorScore = window.VorScore || {};
     async function fetchByDate(date){
       console.log('[VorScore] querying predictions for', date);
       if(!supabaseClient){
-        return fetchPredictionsRest(`select=*&fixture_date=eq.${encodeURIComponent(date)}&order=confidence.desc`);
+        console.error('[VorScore] Supabase client unavailable — aborting live fetch');
+        return [];
       }
       const { data, error } = await supabaseClient
         .from('predictions')
-        .select('*')
+        .select(`
+          id,
+          fixture_id,
+          fixture_date,
+          kickoff,
+          league,
+          home_team,
+          away_team,
+          pick,
+          confidence,
+          category,
+          reason,
+          home_score,
+          away_score,
+          final_status,
+          verdict,
+          result
+        `)
         .eq('fixture_date', date)
-        .order('confidence', { ascending: false });
+        .order('kickoff', { ascending: true });
       if(error){
         console.error('[VorScore] predictions query failed:', date, error.code, error.message);
-        if(error.code === 'PGRST205') return null;
         return [];
       }
-      console.log(`[VorScore] ${(data || []).length} rows returned for ${date}`);
-      return data || [];
+      const matches = (data || []);
+      console.log('[VorScore] prediction row sample', matches?.[0]);
+      console.log(`[VorScore] ${(matches || []).length} rows returned for ${date}`);
+      return matches || [];
     }
 
+    // Try multiple date variants (EAT, Kenya ISO offset, UTC) to handle differing DB date formats
     let rows = [];
     for(const date of predictionQueryDates()){
       const batch = await fetchByDate(date);
-      if(batch === null) return [];
-      if(batch.length){
+      if(batch && batch.length){
         rows = batch;
         activePredictionDate = normalizeMatchDate(batch[0].fixture_date) || date;
         break;
       }
     }
-
     if(!rows.length){
-      console.log('[VorScore] dated queries empty — fetching latest predictions batch');
-      if(supabaseClient){
-        const { data: all, error } = await supabaseClient
-          .from('predictions')
-          .select('*')
-          .order('confidence', { ascending: false })
-          .limit(100);
-        if(error){
-          console.error('[VorScore] predictions fallback failed:', error.message);
-        } else if(all?.length){
-          console.log(`[VorScore] ${all.length} total rows in predictions table`);
-          rows = all;
+      // If client anon Supabase cannot read due to RLS, fallback to server API
+      try {
+        const resp = await fetch('/api/predictions');
+        if(resp.ok){
+          const json = await resp.json();
+          if(Array.isArray(json) && json.length){
+            rows = json;
+            activePredictionDate = normalizeMatchDate(rows[0].fixture_date) || todayEatDate();
+          }
         }
-      }
-      if(!rows.length){
-        rows = await fetchPredictionsRest();
-      }
-      if(rows.length){
-        const eatToday = todayEatDate();
-        const todayRows = rows.filter(row => normalizeMatchDate(row.fixture_date) === eatToday);
-        if(todayRows.length){
-          rows = todayRows;
-          activePredictionDate = eatToday;
-        } else {
-          const latestDate = rows.reduce((max, row) => {
-            const d = normalizeMatchDate(row.fixture_date);
-            return d > max ? d : max;
-          }, '');
-          rows = rows.filter(row => normalizeMatchDate(row.fixture_date) === latestDate);
-          activePredictionDate = latestDate;
-        }
+      } catch (e) {
+        console.warn('[VorScore] server API fallback failed:', e);
       }
     }
+    if(!rows.length){
+      const today = todayEatDate();
+      console.warn('[VorScore] no predictions found for any date variant, tried:', predictionQueryDates(), 'primary today:', today);
+      return [];
+    }
 
-    automaticPicks = rows.map(mapPredictionToMatch).filter(pick => pick.home_team && pick.away_team);
+    automaticPickRows = rows || [];
+    automaticPicks = (rows || []).map(mapPredictionToMatch).filter(pick => pick.home_team && pick.away_team);
     if(rows.length && !automaticPicks.length){
       console.warn('[VorScore] rows fetched but filtered out — sample:', rows[0]);
     }
@@ -278,8 +305,54 @@ window.VorScore = window.VorScore || {};
     }
     const fixtureDate = activePredictionDate || todayEatDate();
     console.log(`[VorScore] ${automaticPicks.length} auto picks loaded for ${fixtureDate}`);
-    populateVorScoreData(rows);
+    populateVorScoreData(automaticPickRows);
+    // subscribe to realtime updates for predictions
+    subscribeToPredictionChanges();
     return automaticPicks;
+  }
+
+  function upsertRowIntoPickRows(newRow){
+    const key = (r) => (r.fixture_id ?? r.id ?? '') + '::' + (normalizeMatchDate(r.fixture_date ?? '') || '') + '::' + (r.home_team ?? '') + '::' + (r.away_team ?? '');
+    const newKey = key(newRow);
+    const idx = automaticPickRows.findIndex(r => key(r) === newKey);
+    if(idx >= 0) automaticPickRows[idx] = newRow;
+    else automaticPickRows.push(newRow);
+  }
+
+  function subscribeToPredictionChanges(){
+    if(!supabaseClient) return;
+    if(subscribeToPredictionChanges._subscribed) return;
+    subscribeToPredictionChanges._subscribed = true;
+    // support both supabase-js v2 channel API and v1 .from().on()
+    try {
+      if(typeof supabaseClient.channel === 'function'){
+        const chan = supabaseClient.channel('public:predictions');
+        chan.on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, payload => {
+          const row = payload.record || payload.new || payload;
+          console.log('[VorScore] Live fixture update', row?.fixture_id, row?.home_score, row?.away_score, row?.final_status);
+          upsertRowIntoPickRows(row);
+          automaticPicks = automaticPickRows.map(mapPredictionToMatch).filter(p => p.home_team && p.away_team);
+          populateVorScoreData(automaticPickRows);
+        });
+        chan.subscribe();
+        return;
+      }
+    } catch (e) {
+      console.warn('Realtime channel subscribe failed:', e);
+    }
+    try {
+      if(typeof supabaseClient.from === 'function' && typeof supabaseClient.from('predictions').on === 'function'){
+        supabaseClient.from('predictions').on('*', payload => {
+          const row = payload.new || payload.record || payload;
+          console.log('[VorScore] Live fixture update', row?.fixture_id, row?.home_score, row?.away_score, row?.final_status);
+          upsertRowIntoPickRows(row);
+          automaticPicks = automaticPickRows.map(mapPredictionToMatch).filter(p => p.home_team && p.away_team);
+          populateVorScoreData(automaticPickRows);
+        }).subscribe();
+      }
+    } catch (e) {
+      console.warn('Realtime fallback subscribe failed:', e);
+    }
   }
 
   function formatKickoffToEAT(kickoff){
@@ -288,16 +361,32 @@ window.VorScore = window.VorScore || {};
   }
 
   function populateVorScoreData(picks){
-    const normalizedPicks = (picks || []).map(p => ({
-      time: formatKickoffToEAT(p.kickoff),
-      league: p.league ?? '—',
-      match: `${p.home_team} vs ${p.away_team}`,
-      pick: p.pick ?? '—',
-      status: 'UPCOMING',
-      result: '⏳',
-      confidence: p.confidence,
-      category: p.category,
-    }));
+    const normalizedPicks = (picks || []).map(row => {
+      const time = formatKickoffToEAT(row.kickoff);
+      const league = row.league ?? '—';
+      const home = row.home_team ?? '';
+      const away = row.away_team ?? '';
+      const hasScore = row.home_score != null && row.away_score != null;
+      const pick = row.pick ?? '—';
+      // render status from prediction `final_status` and result from `verdict`
+      const matchStatus = getMatchStatus(row.final_status);
+      const predResult = getPredictionResult({ verdict: row.verdict });
+      return {
+        time,
+        league,
+        match: `${home} vs ${away}`,
+        home_score: hasScore ? row.home_score : null,
+        away_score: hasScore ? row.away_score : null,
+        final_status: row.final_status ?? null,
+        status: matchStatus.label,
+        status_text: `${matchStatus.icon} ${matchStatus.label}`,
+        pick,
+        result: row.verdict ?? null,
+        result_text: `${predResult.icon} ${predResult.label}`,
+        confidence: row.confidence,
+        category: normalizePredictionCategory(row.category),
+      };
+    });
 
     window.vorScoreData = {
       allPicks: normalizedPicks,
@@ -362,14 +451,14 @@ window.VorScore = window.VorScore || {};
         return allMatches;
       }
     }
-    allMatches = sampleMatches
-      .map(normalizeLoadedMatch)
-      .filter(match => match.publication_status !== 'draft');
+    // If remote loading is not available, return an empty list (no cached/static fallbacks)
+    allMatches = [];
     return allMatches;
   }
 
   function matchRowCells(m){
-    const stateClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
+    const effective = m.fixture_status ?? m.final_status ?? m.status;
+    const stateClass = effective === 'live' ? 'live' : (effective === 'finished' || effective === 'ft' ? 'finished' : '');
     const score = m.score || (m.home_score != null && m.away_score != null ? `${m.home_score} - ${m.away_score}` : '');
     const pickText = displayPick(m);
     const pickValues = [pickText === '—' ? '—' : `${escapeHtml(pickText)}${selectedOdds(m)}`];

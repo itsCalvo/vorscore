@@ -9,6 +9,29 @@ type AllPicksTableProps = {
 export function AllPicksTable({ picks }: AllPicksTableProps) {
   if (!picks.length) return null;
 
+  function getMatchStatus(match?: any) {
+    const status = (
+      match?.fixture_status || match?.final_status || match?.status || 'upcoming'
+    ).toString().toLowerCase();
+
+    switch (status) {
+      case 'live':
+        return { label: '🔴 LIVE', className: 'status-live' };
+      case 'finished':
+      case 'ft':
+        return { label: '🏁 FINISHED', className: 'status-finished' };
+      default:
+        return { label: '⏳ UPCOMING', className: 'status-upcoming' };
+    }
+  }
+
+  const getPredictionResult = (m?: any) => {
+    const outcome = (m?.verdict || m?.result || '')?.toString().toUpperCase();
+    if (outcome === 'WIN') return { label: '✅ WIN', className: 'result-win' };
+    if (outcome === 'LOSS') return { label: '❌ LOSS', className: 'result-loss' };
+    return { label: '⏳ PENDING', className: 'result-pending' };
+  };
+
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -37,11 +60,24 @@ export function AllPicksTable({ picks }: AllPicksTableProps) {
                 <td className="px-4 py-3 text-zinc-400">{pick.league ?? '—'}</td>
                 <td className="px-4 py-3 font-medium text-white">
                   {pick.home_team} <span className="font-normal text-zinc-500">vs</span> {pick.away_team}
+                  {pick.home_score != null && pick.away_score != null ? (
+                    <div className="mt-1 text-sm text-zinc-400">{`${pick.home_score} : ${pick.away_score}`}</div>
+                  ) : null}
+                  {(() => {
+                    const s = getMatchStatus(pick as any);
+                    return (
+                      <div className={`mt-1 text-sm text-zinc-400 ${s.className}`}>{s.label}</div>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <span className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 font-semibold text-amber-300">
-                    {pick.pick}
+                    {pick.pick ?? '—'}
                   </span>
+                  {(() => {
+                    const res = getPredictionResult(pick as any);
+                    return res ? <div className="mt-1 text-sm text-zinc-300">{res.label}</div> : null;
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <ConfidenceBadge confidence={pick.confidence} />

@@ -12,6 +12,11 @@ export type Prediction = {
   confidence: number;
   category?: string | null;
   reason?: string | null;
+  result?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
+  final_status?: string | null;
+  verdict?: string | null;
 };
 
 export type SplitPredictions = {
@@ -50,7 +55,7 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
   async function fetchByDate(date: string) {
     const { data, error } = await supabase
       .from('predictions')
-      .select('*')
+      .select(`id, fixture_id, fixture_date, kickoff, league, home_team, away_team, pick, confidence, category, reason, result, home_score, away_score, final_status, verdict, fixtures ( status, api_status, home_score, away_score )`)
       .eq('fixture_date', date)
       .order('confidence', { ascending: false });
 
@@ -58,6 +63,7 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
       console.error('Failed to load predictions:', error.message);
       return null;
     }
+    console.log('[VorScore] prediction row sample', data?.[0]);
 
     return (data ?? []) as Prediction[];
   }
@@ -67,7 +73,14 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
     const batch = await fetchByDate(date);
     if (batch === null) return [];
     if (batch.length) {
-      rows = batch;
+      // prefer fixture-joined values when present
+      rows = (batch as any[]).map(r => ({
+        ...r,
+        fixture_status: (r.fixtures as any)?.status ?? r.status,
+        api_status: (r.fixtures as any)?.api_status ?? r.api_status,
+        home_score: (r.fixtures as any)?.home_score ?? r.home_score,
+        away_score: (r.fixtures as any)?.away_score ?? r.away_score,
+      }));
       break;
     }
   }
@@ -75,11 +88,12 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
   if (!rows.length) {
     const { data: all, error } = await supabase
       .from('predictions')
-      .select('*')
+      .select(`id, fixture_id, fixture_date, kickoff, league, home_team, away_team, pick, confidence, category, reason, result, home_score, away_score, final_status, verdict, fixtures ( status, api_status, home_score, away_score )`)
       .order('confidence', { ascending: false })
       .limit(100);
 
     if (!error && all?.length) {
+      console.log('[VorScore] prediction row sample', all?.[0]);
       const eatToday = todayFixtureDate();
       rows = all.filter(row => normalizeFixtureDate(row.fixture_date) === eatToday) as Prediction[];
       if (!rows.length) {
