@@ -165,11 +165,11 @@ async function enrichMatchesFromFixtures(matches){
     if(!fixture) return;
     if(fixture.home_score != null) match.home_score = fixture.home_score;
     if(fixture.away_score != null) match.away_score = fixture.away_score;
-    // authoritative fixture status fields
-    if(fixture.status) match.status = fixture.status;
-    if(fixture.api_status) match.api_status = fixture.api_status;
+    // authoritative fixture status fields (normalize casing)
+    if(fixture.status) match.status = String(fixture.status).toLowerCase();
+    if(fixture.api_status) match.api_status = String(fixture.api_status).toUpperCase();
     // keep a canonical final_status that other code uses for rendering
-    match.final_status = fixture.api_status ?? fixture.status ?? match.final_status ?? null;
+    match.final_status = match.api_status ?? (match.status ? match.status.toUpperCase() : null) ?? match.final_status ?? null;
     match.fixture_status = fixture.status ?? match.fixture_status ?? null;
     if(fixture.home_score != null && fixture.away_score != null){
       match.score = `${fixture.home_score} : ${fixture.away_score}`;

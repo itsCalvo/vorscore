@@ -113,6 +113,14 @@
       await VorScore.loadMatches();
       renderDateTabs();
       renderActiveTab();
+      const count = window.vorScoreData?.allPicks?.length ?? 0;
+      console.log('[VorScore] tips refresh complete, picks:', count);
+      if(!count){
+        const tbody = document.getElementById('tableBody');
+        if(tbody){
+          tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No tips loaded — open DevTools (F12) and check for blocked requests to supabase.co.</td></tr>';
+        }
+      }
     } catch (error) {
       console.error('Tips refresh failed:', error);
       const tbody = document.getElementById('tableBody');
@@ -121,6 +129,11 @@
       }
     }
   }
+
+  window.addEventListener('vorscore:data-ready', () => {
+    renderDateTabs();
+    renderActiveTab();
+  });
 
   refresh();
   setInterval(refresh, 60000);
