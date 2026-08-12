@@ -165,10 +165,28 @@ async function enrichMatchesFromFixtures(matches){
     if(!fixture) return;
     if(fixture.home_score != null) match.home_score = fixture.home_score;
     if(fixture.away_score != null) match.away_score = fixture.away_score;
+    // authoritative fixture status fields
     if(fixture.status) match.status = fixture.status;
     if(fixture.api_status) match.api_status = fixture.api_status;
+    // keep a canonical final_status that other code uses for rendering
+    match.final_status = fixture.api_status ?? fixture.status ?? match.final_status ?? null;
+    match.fixture_status = fixture.status ?? match.fixture_status ?? null;
     if(fixture.home_score != null && fixture.away_score != null){
       match.score = `${fixture.home_score} : ${fixture.away_score}`;
+    }
+    // recompute verdict deterministically if fixture indicates finished and scores present
+    try {
+      const scores = matchScores(match);
+      const finished = isMatchFinished(match);
+      if(finished && scores.home != null && scores.away != null){
+        const pickText = (typeof displayPick === 'function') ? displayPick(match) : (match.pick_label || match.prediction_selection || null);
+        const resolved = (typeof resolveResult === 'function') ? resolveResult(pickText, scores.home, scores.away, 'finished', match.is_locked) : null;
+        if(resolved && String(resolved).includes('WIN')) match.verdict = 'WIN';
+        else if(resolved && String(resolved).includes('LOSS')) match.verdict = 'LOSS';
+        else match.verdict = match.verdict ?? null;
+      }
+    } catch (e) {
+      // if resolver not available in this runtime, skip recompute
     }
   });
   return matches;

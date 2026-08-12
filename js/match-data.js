@@ -160,9 +160,10 @@ window.VorScore = window.VorScore || {};
   function getMatchStatus(statusVal){
     const s = String(statusVal ?? '').toUpperCase();
     if(!s || s === 'NS') return { icon: '⏳', label: 'UPCOMING', className: 'status-upcoming' };
-    if(s === '1H' || s === '2H' || s === 'LIVE') return { icon: '🔴', label: 'LIVE', className: 'status-live' };
-    if(s === 'HT') return { icon: '⏸', label: 'HALFTIME', className: 'status-halftime' };
-    if(s === 'FT' || s === 'FINISHED') return { icon: '🏁', label: 'FINISHED', className: 'status-finished' };
+    // treat these as live statuses (including HT per canonical rules)
+    if(['1H','2H','LIVE','HT','ET','BT'].includes(s)) return { icon: '🔴', label: 'LIVE', className: 'status-live' };
+    // finished API statuses map to FINISHED
+    if(['FT','AET','PEN','AWD','WO','FINISHED'].includes(s)) return { icon: '🏁', label: 'FINISHED', className: 'status-finished' };
     return { icon: '', label: s, className: 'status-upcoming' };
   }
 
@@ -176,7 +177,11 @@ window.VorScore = window.VorScore || {};
   function mapPredictionToMatch(row){
     const { market, selection } = parsePredictionPick(row);
     const kickoffParts = row.kickoff ? isoToEatParts(row.kickoff) : { match_date: '', kickoff_time: '' };
-    return normalizeLoadedMatch({
+    // prefer fixture values when available; Supabase returns related rows as arrays
+    const fixtureRaw = row.fixtures;
+    const fixture = Array.isArray(fixtureRaw) ? (fixtureRaw[0] || null) : (fixtureRaw || null);
+    const fixtureExists = !!fixture;
+    const merged = normalizeLoadedMatch({
       id: row.id,
       external_match_id: row.fixture_id ?? row.external_match_id ?? null,
       match_date: row.fixture_date ?? kickoffParts.match_date,
@@ -193,17 +198,41 @@ window.VorScore = window.VorScore || {};
       trust_score: row.confidence ?? row.trust_score ?? null,
       is_locked: row.is_locked ?? false,
       publication_status: 'published',
-      // use prediction-level values for rendering on Home
-      fixture_status: row.fixture_status ?? null,
-      api_status: row.api_status ?? null,
-      home_score: row.home_score ?? null,
-      away_score: row.away_score ?? null,
-      score: (row.home_score != null && row.away_score != null) ? `${row.home_score} : ${row.away_score}` : (row.score ?? null),
+      // authoritative fixture values override prediction-level values when a fixture exists
+      api_status: fixtureExists ? (fixture.api_status ?? null) : (row.api_status ?? null),
+      final_status: fixtureExists ? (fixture.api_status ?? fixture.status ?? null) : (row.final_status ?? row.api_status ?? row.status ?? null),
+      fixture_status: fixtureExists ? (fixture.status ?? null) : (row.fixture_status ?? row.status ?? null),
+      home_score: fixtureExists ? (fixture.home_score != null ? fixture.home_score : null) : (row.home_score ?? null),
+      away_score: fixtureExists ? (fixture.away_score != null ? fixture.away_score : null) : (row.away_score ?? null),
+      score: (fixture.home_score != null && fixture.away_score != null)
+        ? `${fixture.home_score} : ${fixture.away_score}`
+        : (row.home_score != null && row.away_score != null ? `${row.home_score} : ${row.away_score}` : (row.score ?? null)),
       prediction_result: row.result ?? row.verdict ?? null,
-      final_status: row.final_status ?? null,
-      verdict: row.verdict ?? null,
       source: 'automatic',
     });
+
+    // determine authoritative verdict from fixture when finished
+    const scores = matchScores(merged);
+    const finished = isMatchFinished(merged);
+    if(fixtureExists && finished && scores.home != null && scores.away != null){
+      // authoritative verdict from fixture
+      const pickText = displayPick(merged);
+      const resolved = resolveResult(pickText, scores.home, scores.away, 'finished', merged.is_locked);
+      if(String(resolved).includes('WIN')) merged.verdict = 'WIN';
+      else if(String(resolved).includes('LOSS')) merged.verdict = 'LOSS';
+      else merged.verdict = null;
+    } else if(!fixtureExists && finished && scores.home != null && scores.away != null){
+      // no fixture row — fall back to prediction verdict if available or compute
+      const pickText = displayPick(merged);
+      const resolved = resolveResult(pickText, scores.home, scores.away, 'finished', merged.is_locked);
+      if(String(resolved).includes('WIN')) merged.verdict = 'WIN';
+      else if(String(resolved).includes('LOSS')) merged.verdict = 'LOSS';
+      else merged.verdict = null;
+    } else {
+      merged.verdict = row.verdict ?? row.result ?? null;
+    }
+
+    return merged;
   }
 
   function mergeKey(match){
@@ -251,6 +280,7 @@ window.VorScore = window.VorScore || {};
           final_status,
           verdict,
           result
+          ,fixtures ( status, api_status, home_score, away_score )
         `)
         .eq('fixture_date', date)
         .order('kickoff', { ascending: true });
@@ -297,6 +327,13 @@ window.VorScore = window.VorScore || {};
 
     automaticPickRows = rows || [];
     automaticPicks = (rows || []).map(mapPredictionToMatch).filter(pick => pick.home_team && pick.away_team);
+    // enrich automatic picks with authoritative fixture rows before rendering
+    try {
+      const enriched = await enrichMatchesFromFixtures(automaticPicks);
+      if(Array.isArray(enriched) && enriched.length) automaticPicks = enriched;
+    } catch (e) {
+      console.warn('[VorScore] automatic picks fixture enrichment failed:', e);
+    }
     if(rows.length && !automaticPicks.length){
       console.warn('[VorScore] rows fetched but filtered out — sample:', rows[0]);
     }
@@ -305,7 +342,7 @@ window.VorScore = window.VorScore || {};
     }
     const fixtureDate = activePredictionDate || todayEatDate();
     console.log(`[VorScore] ${automaticPicks.length} auto picks loaded for ${fixtureDate}`);
-    populateVorScoreData(automaticPickRows);
+    populateVorScoreData(automaticPicks);
     // subscribe to realtime updates for predictions
     subscribeToPredictionChanges();
     return automaticPicks;
@@ -331,8 +368,11 @@ window.VorScore = window.VorScore || {};
           const row = payload.record || payload.new || payload;
           console.log('[VorScore] Live fixture update', row?.fixture_id, row?.home_score, row?.away_score, row?.final_status);
           upsertRowIntoPickRows(row);
-          automaticPicks = automaticPickRows.map(mapPredictionToMatch).filter(p => p.home_team && p.away_team);
-          populateVorScoreData(automaticPickRows);
+            (async () => {
+              automaticPicks = automaticPickRows.map(mapPredictionToMatch).filter(p => p.home_team && p.away_team);
+              try { automaticPicks = await enrichMatchesFromFixtures(automaticPicks); } catch(e){ console.warn('[VorScore] realtime enrichment failed:', e); }
+              populateVorScoreData(automaticPicks);
+            })();
         });
         chan.subscribe();
         return;
@@ -346,8 +386,11 @@ window.VorScore = window.VorScore || {};
           const row = payload.new || payload.record || payload;
           console.log('[VorScore] Live fixture update', row?.fixture_id, row?.home_score, row?.away_score, row?.final_status);
           upsertRowIntoPickRows(row);
-          automaticPicks = automaticPickRows.map(mapPredictionToMatch).filter(p => p.home_team && p.away_team);
-          populateVorScoreData(automaticPickRows);
+          (async () => {
+            automaticPicks = automaticPickRows.map(mapPredictionToMatch).filter(p => p.home_team && p.away_team);
+            try { automaticPicks = await enrichMatchesFromFixtures(automaticPicks); } catch(e){ console.warn('[VorScore] realtime enrichment failed:', e); }
+            populateVorScoreData(automaticPicks);
+          })();
         }).subscribe();
       }
     } catch (e) {
