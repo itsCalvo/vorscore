@@ -3,8 +3,13 @@
 
   function syncActiveDate(dates){
     const todayStr = todayEatDate();
+    const predictionDate = VorScore.activePredictionDate;
+    if(predictionDate && dates.includes(predictionDate)){
+      activeDate = predictionDate;
+      return;
+    }
     if(!dates.length){
-      activeDate = todayStr;
+      activeDate = predictionDate || todayStr;
       return;
     }
     if(!activeDate || !dates.includes(activeDate)){
@@ -15,19 +20,16 @@
   }
 
   function renderDateTabs(){
-    const allMatches = VorScore.allMatches;
+    const upcoming = VorScore.getUpcomingMatches();
     const dates = [...new Set(
-      allMatches
-        .filter(match => VorScore.isTipsMatch(match))
-        .map(m => VorScore.normalizeMatchDate(m.match_date))
-        .filter(Boolean)
+      upcoming.map(m => VorScore.normalizeMatchDate(m.match_date)).filter(Boolean)
     )].sort();
     syncActiveDate(dates);
     const wrap = document.getElementById('dateTabs');
     if(!wrap) return;
     wrap.innerHTML = '';
     if(!dates.length){
-      wrap.innerHTML = `<div class="date-pill active">${VorScore.formatDateLabel(activeDate)}</div>`;
+      wrap.innerHTML = `<div class="date-pill active">${VorScore.formatDateLabel(activeDate || todayEatDate())}</div>`;
       return;
     }
     dates.forEach(d => {
@@ -42,11 +44,12 @@
   function renderTable(){
     const tbody = document.getElementById('tableBody');
     if(!tbody) return;
-    const rows = VorScore.allMatches
-      .filter(m => VorScore.isTipsMatch(m) && VorScore.normalizeMatchDate(m.match_date) === activeDate)
+    const date = activeDate || todayEatDate();
+    const rows = VorScore.getUpcomingMatches()
+      .filter(m => VorScore.normalizeMatchDate(m.match_date) === date)
       .sort((a, b) => String(a.kickoff_time || '').localeCompare(String(b.kickoff_time || '')));
     if(rows.length === 0){
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No upcoming matches for this date.</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No matches scheduled for this date yet.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(m => {

@@ -1,6 +1,6 @@
 window.VorScore = window.VorScore || {};
 
-const VOR_VERSION = 'match-data.v14';
+const VOR_VERSION = 'match-data.v18';
 (function(){
   // Single Supabase client from config.js — avoids duplicate GoTrueClient instances
   const client = (typeof supabaseClient !== 'undefined' && supabaseClient) ? supabaseClient : null;
@@ -27,18 +27,91 @@ const VOR_VERSION = 'match-data.v14';
     return labels[String(selection).toUpperCase()] || String(selection).replace(/_/g, ' ');
   }
 
+  const FIXTURE_SELECT_TIERS = [
+    'fixture_id,fixture_date,kickoff,league,home_team,away_team,status,api_status,home_score,away_score,current_minute,source',
+    'fixture_id,fixture_date,kickoff,league,home_team,away_team,status,api_status,home_score,away_score',
+    'fixture_id,kickoff,league,home_team,away_team,home_score,away_score,status,api_status',
+  ];
+
+  function supabaseRestHeaders(){
+    return {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Accept: 'application/json',
+    };
+  }
+
+  function attachFixturesToRows(rows, fixtures){
+    if(!rows?.length) return rows || [];
+    const byId = Object.fromEntries((fixtures || []).map(fixture => [String(fixture.fixture_id), fixture]));
+    return rows.map(row => {
+      const fixture = row.fixture_id != null ? byId[String(row.fixture_id)] : null;
+      return fixture ? { ...row, fixtures: fixture } : row;
+    });
+  }
+
+  async function fetchFixturesRestChunk(ids, tierIndex = 0){
+    if(!ids.length || tierIndex >= FIXTURE_SELECT_TIERS.length) return [];
+    const select = FIXTURE_SELECT_TIERS[tierIndex];
+    const url = `${SUPABASE_URL}/rest/v1/fixtures?select=${select}&fixture_id=in.(${ids.join(',')})`;
+    try {
+      const response = await fetch(url, { headers: supabaseRestHeaders() });
+      if(!response.ok){
+        if(response.status === 400 && tierIndex + 1 < FIXTURE_SELECT_TIERS.length){
+          return fetchFixturesRestChunk(ids, tierIndex + 1);
+        }
+        return [];
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (_e) {
+      return [];
+    }
+  }
+
+  async function fetchFixturesRestByIds(ids){
+    if(typeof SUPABASE_URL !== 'string' || !SUPABASE_URL.startsWith('http') || !ids?.length) return [];
+    const unique = [...new Set(ids.filter(id => id != null))];
+    const fixtures = [];
+    for(let offset = 0; offset < unique.length; offset += 80){
+      const chunk = unique.slice(offset, offset + 80);
+      fixtures.push(...await fetchFixturesRestChunk(chunk));
+    }
+    return fixtures;
+  }
+
+  async function fetchFixturesByIds(ids){
+    if(!ids?.length) return [];
+    const unique = [...new Set(ids.filter(id => id != null))];
+    if(client){
+      for(const select of FIXTURE_SELECT_TIERS){
+        try {
+          const { data, error } = await client
+            .from('fixtures')
+            .select(select.replace(/,/g, ', '))
+            .in('fixture_id', unique);
+          if(!error && data?.length) return data;
+          if(error && !/column|42703/i.test(error.message || '')) break;
+        } catch (_e) { /* try next tier */ }
+      }
+    }
+    return fetchFixturesRestByIds(unique);
+  }
+
+  async function enrichPredictionRowsWithFixtures(rows){
+    if(!rows?.length) return rows;
+    const ids = rows.map(row => row.fixture_id).filter(id => id != null);
+    if(!ids.length) return rows;
+    const fixtures = await fetchFixturesByIds(ids);
+    return attachFixturesToRows(rows, fixtures);
+  }
+
   async function fetchPredictionsRest(querySuffix){
     if(typeof SUPABASE_URL !== 'string' || !SUPABASE_URL.startsWith('http')) return [];
     const query = querySuffix || 'select=*&order=confidence.desc&limit=200';
     const url = `${SUPABASE_URL}/rest/v1/predictions?${query}`;
     try {
-      const response = await fetch(url, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          Accept: 'application/json',
-        },
-      });
+      const response = await fetch(url, { headers: supabaseRestHeaders() });
       if(!response.ok){
         const body = await response.text();
         console.error('[VorScore] REST predictions failed:', response.status, body);
@@ -46,8 +119,9 @@ const VOR_VERSION = 'match-data.v14';
       }
       const data = await response.json();
       const rows = Array.isArray(data) ? data : [];
-      console.log(`[VorScore] REST returned ${rows.length} rows`);
-      return rows;
+      const enriched = await enrichPredictionRowsWithFixtures(rows);
+      console.log(`[VorScore] REST returned ${enriched.length} rows`);
+      return enriched;
     } catch (e) {
       console.error('[VorScore] REST predictions error:', e);
       return [];
@@ -65,6 +139,15 @@ const VOR_VERSION = 'match-data.v14';
   function rowsForDate(rows, date){
     return rows.filter(row => normalizeMatchDate(row.fixture_date) === date);
   }
+
+  function isPublishedPrediction(row){
+    return row?.publication_status !== 'draft';
+  }
+
+  function filterPublishedRows(rows){
+    return (rows || []).filter(isPublishedPrediction);
+  }
+
   function selectedOdds(match){
     if(match.prediction_market !== '1X2') return '';
     const odds = { HOME: match.odds_home, DRAW: match.odds_draw, AWAY: match.odds_away }[match.prediction_selection];
@@ -134,10 +217,54 @@ const VOR_VERSION = 'match-data.v14';
 
   function isTipsMatch(match){
     if(match.publication_status === 'draft') return false;
-    if(isAutomaticPick(match)) return true;
     const date = normalizeMatchDate(match.match_date);
     if(!date) return false;
+    if(match.source === 'automatic' && date >= todayEatDate()) return true;
+    if(isAutomaticPick(match)) return true;
     return date >= todayEatDate();
+  }
+
+  function getUpcomingMatches(){
+    const today = todayEatDate();
+    return allMatches.filter(match => {
+      if(match.publication_status === 'draft') return false;
+      const date = normalizeMatchDate(match.match_date);
+      return date && date >= today;
+    });
+  }
+
+  function resolveMatchVerdict(match){
+    const pick = displayPick(match);
+    if(pick.includes('Subscriber pick') || match.is_locked) return 'locked';
+    const scores = matchScores(match);
+    const effectiveStatus = isMatchFinished(match) ? 'finished' : match.status;
+    return resolveResult(pick, scores.home, scores.away, effectiveStatus, false);
+  }
+
+  function getTrackRecordStats(){
+    const history = getHistoryRows();
+    let wins = 0;
+    let losses = 0;
+    let pending = 0;
+    let locked = 0;
+    history.forEach(match => {
+      const verdict = resolveMatchVerdict(match);
+      if(verdict.includes('WIN')) wins++;
+      else if(verdict.includes('LOSS')) losses++;
+      else if(verdict.includes('Locked')) locked++;
+      else pending++;
+    });
+    const settled = wins + losses;
+    return {
+      wins,
+      losses,
+      pending,
+      locked,
+      settled,
+      total: history.length,
+      winRate: settled ? Math.round((wins / settled) * 1000) / 10 : null,
+      days: Object.keys(getHistoryGroups()).length,
+    };
   }
 
   function normalizeLoadedMatch(match){
@@ -206,12 +333,12 @@ const VOR_VERSION = 'match-data.v14';
     const merged = normalizeLoadedMatch({
       id: row.id,
       external_match_id: row.fixture_id ?? row.external_match_id ?? null,
-      match_date: normalizeMatchDate(row.fixture_date) || kickoffParts.match_date,
+      match_date: normalizeMatchDate(fixture?.fixture_date ?? row.fixture_date) || kickoffParts.match_date,
       kickoff_time: row.kickoff_time ?? kickoffParts.kickoff_time ?? '',
-      kickoff_iso: row.kickoff ?? null,
-      home_team: row.home_team ?? row.homeTeam ?? '',
-      away_team: row.away_team ?? row.awayTeam ?? '',
-      league: row.league ?? null,
+      kickoff_iso: fixtureExists ? (fixture.kickoff ?? row.kickoff ?? null) : (row.kickoff ?? null),
+      home_team: fixtureExists ? (fixture.home_team ?? row.home_team ?? row.homeTeam ?? '') : (row.home_team ?? row.homeTeam ?? ''),
+      away_team: fixtureExists ? (fixture.away_team ?? row.away_team ?? row.awayTeam ?? '') : (row.away_team ?? row.awayTeam ?? ''),
+      league: fixtureExists ? (fixture.league ?? row.league ?? null) : (row.league ?? null),
       prediction_market: market,
       prediction_selection: selection,
       pick_label: row.pick ?? null,
@@ -219,8 +346,7 @@ const VOR_VERSION = 'match-data.v14';
       category: normalizePredictionCategory(row.category),
       trust_score: row.confidence ?? row.trust_score ?? null,
       is_locked: row.is_locked ?? false,
-      publication_status: 'published',
-      // authoritative fixture values override prediction-level values when a fixture exists
+      publication_status: row.publication_status ?? 'published',
       api_status: fixtureExists ? (fixture.api_status ?? null) : (row.api_status ?? null),
       final_status: fixtureExists ? (fixture.api_status ?? fixture.status ?? null) : (row.final_status ?? row.api_status ?? row.status ?? null),
       fixture_status: fixtureExists ? (fixture.status ?? null) : (row.fixture_status ?? row.status ?? null),
@@ -230,7 +356,8 @@ const VOR_VERSION = 'match-data.v14';
         ? `${fixture.home_score} : ${fixture.away_score}`
         : (row.home_score != null && row.away_score != null ? `${row.home_score} : ${row.away_score}` : (row.score ?? null)),
       prediction_result: row.result ?? row.verdict ?? null,
-      source: 'automatic',
+      reason: row.reason ?? null,
+      source: fixture?.source === 'admin' ? 'admin' : 'automatic',
     });
 
     // determine authoritative verdict from fixture when finished
@@ -257,38 +384,10 @@ const VOR_VERSION = 'match-data.v14';
     return merged;
   }
 
-  function mergeKey(match){
-    if(match.external_match_id) return `fixture:${match.external_match_id}`;
-    return `teams:${normalizeMatchDate(match.match_date)}:${match.home_team}:${match.away_team}`;
-  }
-
-  function mergeManualAndAutomaticPicks(manualMatches, automaticPicks){
-    const merged = new Map();
-    automaticPicks.forEach(pick => merged.set(mergeKey(pick), pick));
-    manualMatches.forEach(pick => merged.set(mergeKey(pick), { ...pick, source: pick.source || 'manual' }));
-    return [...merged.values()].sort((a, b) => {
-      const dateCompare = String(a.match_date || '').localeCompare(String(b.match_date || ''));
-      if(dateCompare !== 0) return dateCompare;
-      return String(a.kickoff_time || '').localeCompare(String(b.kickoff_time || ''));
-    });
-  }
-
-  /** Archive merge — predictions table wins on duplicate keys (history should reflect full auto slate). */
-  function mergeArchivePicks(manualMatches, automaticMatches){
-    const merged = new Map();
-    manualMatches.forEach(pick => merged.set(mergeKey(pick), { ...pick, source: pick.source || 'manual' }));
-    automaticMatches.forEach(pick => merged.set(mergeKey(pick), pick));
-    return [...merged.values()].sort((a, b) => {
-      const dateCompare = String(a.match_date || '').localeCompare(String(b.match_date || ''));
-      if(dateCompare !== 0) return dateCompare;
-      return String(a.kickoff_time || '').localeCompare(String(b.kickoff_time || ''));
-    });
-  }
-
   async function fetchPredictionRowsBeforeDate(beforeDate){
-    const restRows = await fetchPredictionsRest(
+    const restRows = filterPublishedRows(await fetchPredictionsRest(
       `select=*&fixture_date=lt.${beforeDate}&order=fixture_date.desc&order=kickoff.asc&limit=500`
-    );
+    ));
     if(restRows.length) return restRows;
 
     if(!client) return [];
@@ -304,7 +403,7 @@ const VOR_VERSION = 'match-data.v14';
         console.warn('[VorScore] historical predictions query failed:', resp.error.message);
         return [];
       }
-      return resp.data || [];
+      return filterPublishedRows(await enrichPredictionRowsWithFixtures(resp.data || []));
     } catch (e) {
       console.warn('[VorScore] historical predictions error:', e);
       return [];
@@ -329,7 +428,7 @@ const VOR_VERSION = 'match-data.v14';
       console.log('[VorScore] querying predictions for', date);
 
       // REST first — most reliable on static GitHub Pages / Live Server
-      const restRows = await fetchPredictionsRest(`select=*&fixture_date=eq.${date}&order=kickoff.asc&limit=200`);
+      const restRows = filterPublishedRows(await fetchPredictionsRest(`select=*&fixture_date=eq.${date}&order=kickoff.asc&limit=200`));
       if(restRows.length){
         console.log(`[VorScore] REST ${restRows.length} rows for ${date}`);
         return restRows;
@@ -356,7 +455,7 @@ const VOR_VERSION = 'match-data.v14';
         console.warn('[VorScore] Supabase JS query failed:', date, error.message || error);
         return [];
       }
-      const matches = (data || []);
+      const matches = filterPublishedRows(await enrichPredictionRowsWithFixtures(data || []));
       console.log('[VorScore] prediction row sample', matches?.[0]);
       console.log(`[VorScore] ${matches.length} rows returned for ${date}`);
       return matches;
@@ -374,7 +473,7 @@ const VOR_VERSION = 'match-data.v14';
     }
     if(!rows.length){
       console.log('[VorScore] dated queries empty — fetching all predictions via REST');
-      const all = await fetchPredictionsRest('select=*&order=confidence.desc&limit=200');
+      const all = filterPublishedRows(await fetchPredictionsRest('select=*&order=confidence.desc&limit=200'));
       if(all.length){
         const today = todayEatDate();
         rows = rowsForDate(all, today);
@@ -427,18 +526,25 @@ const VOR_VERSION = 'match-data.v14';
     if(!client) return;
     if(subscribeToPredictionChanges._subscribed) return;
     subscribeToPredictionChanges._subscribed = true;
+    const refresh = () => {
+      (async () => {
+        try { await refreshAndRender(); } catch(e){ console.warn('[VorScore] realtime refresh failed:', e); }
+      })();
+    };
     // support both supabase-js v2 channel API and v1 .from().on()
     try {
       if(typeof client.channel === 'function'){
-        const chan = client.channel('public:predictions');
+        const chan = client.channel('public:predictions-fixtures');
         chan.on('postgres_changes', { event: '*', schema: 'public', table: 'predictions' }, payload => {
           const row = payload.record || payload.new || payload;
-          console.log('[VorScore] Live fixture update', row?.fixture_id, row?.home_score, row?.away_score, row?.final_status);
+          console.log('[VorScore] Live prediction update', row?.fixture_id, row?.home_score, row?.away_score, row?.final_status);
           upsertRowIntoPickRows(row);
-          // refresh full dataflow (manual -> automatic -> merge -> enrich -> render)
-          (async () => {
-            try { await refreshAndRender(); } catch(e){ console.warn('[VorScore] realtime refresh failed:', e); }
-          })();
+          refresh();
+        });
+        chan.on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, payload => {
+          const row = payload.record || payload.new || payload;
+          console.log('[VorScore] Live fixture update', row?.fixture_id, row?.home_score, row?.away_score, row?.api_status);
+          refresh();
         });
         chan.subscribe();
         return;
@@ -515,44 +621,20 @@ const VOR_VERSION = 'match-data.v14';
   }
 
   async function refreshAndRender(){
-    let manualMatches = [];
-    if(client){
-      try {
-        manualMatches = await loadManualMatches();
-      } catch (e) {
-        console.warn('[VorScore] manual matches load failed:', e);
-      }
-    }
-
     await loadTodayPredictions();
     await loadHistoricalPredictions();
 
-    if(automaticPicks.length && typeof enrichMatchesFromFixtures === 'function'){
-      try {
-        await enrichMatchesFromFixtures(automaticPicks);
-      } catch (e) {
-        console.warn('[VorScore] fixture enrichment failed:', e);
-      }
-    }
-
-    if(historicalAutomaticPicks.length && typeof enrichMatchesFromFixtures === 'function'){
-      try {
-        await enrichMatchesFromFixtures(historicalAutomaticPicks);
-      } catch (e) {
-        console.warn('[VorScore] historical fixture enrichment failed:', e);
-      }
-    }
-
     const allAutomatic = [...historicalAutomaticPicks, ...automaticPicks];
-    allMatches = mergeArchivePicks(manualMatches, allAutomatic);
 
-    if(allMatches.length && typeof enrichMatchesFromFixtures === 'function'){
+    if(allAutomatic.length && typeof enrichMatchesFromFixtures === 'function'){
       try {
-        await enrichMatchesFromFixtures(allMatches);
+        await enrichMatchesFromFixtures(allAutomatic);
       } catch (e) {
         console.warn('[VorScore] fixture enrichment failed:', e);
       }
     }
+
+    allMatches = allAutomatic;
 
     const tipsDate = activePredictionDate || todayEatDate();
     const homepagePicks = automaticPicks.length
@@ -581,19 +663,6 @@ const VOR_VERSION = 'match-data.v14';
   function formatMatchKickoff(match){
     if(match.kickoff_iso) return formatKickoffEat(match.kickoff_iso);
     return formatStoredKickoffEat(match.kickoff_time);
-  }
-
-  async function loadManualMatches(){
-    if(!client) return [];
-    const { data, error } = await client
-      .from('matches')
-      .select('*')
-      .order('match_date')
-      .order('kickoff_time');
-    if(error) throw error;
-    return (data || [])
-      .map(normalizeLoadedMatch)
-      .filter(match => match.publication_status !== 'draft');
   }
 
   async function loadMatches(){
@@ -761,5 +830,7 @@ const VOR_VERSION = 'match-data.v14';
     renderHistoryDaySection,
     getHistoryRows,
     getHistoryGroups,
+    getUpcomingMatches,
+    getTrackRecordStats,
   });
 })();

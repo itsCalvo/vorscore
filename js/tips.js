@@ -108,9 +108,31 @@
     document.getElementById('banner').style.display = 'none';
   });
 
+  function renderHomeStats(){
+    const wrap = document.getElementById('homeStats');
+    if(!wrap || typeof VorScore.getTrackRecordStats !== 'function') return;
+    const stats = VorScore.getTrackRecordStats();
+    if(!stats.settled){
+      wrap.innerHTML = '';
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    const winRate = stats.winRate != null ? `${stats.winRate}%` : '—';
+    wrap.innerHTML = `
+      <a class="stats-strip-inner" href="history.html">
+        <span class="stats-strip-item"><strong>${VorScore.escapeHtml(winRate)}</strong> win rate</span>
+        <span class="stats-strip-divider" aria-hidden="true">·</span>
+        <span class="stats-strip-item"><strong>${stats.wins}W</strong> / <strong>${stats.losses}L</strong> settled</span>
+        <span class="stats-strip-divider" aria-hidden="true">·</span>
+        <span class="stats-strip-link">View track record →</span>
+      </a>`;
+  }
+
   async function refresh(){
     try {
       await VorScore.loadMatches();
+      renderHomeStats();
       renderDateTabs();
       renderActiveTab();
       const count = window.vorScoreData?.allPicks?.length ?? 0;

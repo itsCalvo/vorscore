@@ -7,6 +7,34 @@
     return d.toLocaleDateString('en-KE', { day:'numeric', month:'short', timeZone: APP_TIMEZONE });
   }
 
+  function renderTrackRecordStats(){
+    const wrap = document.getElementById('trackRecordStats');
+    if(!wrap || typeof VorScore.getTrackRecordStats !== 'function') return;
+    const stats = VorScore.getTrackRecordStats();
+    const winRateLabel = stats.winRate != null ? `${stats.winRate}%` : '—';
+    wrap.innerHTML = `
+      <div class="stat-card stat-card--highlight">
+        <span class="stat-label">Win rate</span>
+        <strong class="stat-value">${VorScore.escapeHtml(String(winRateLabel))}</strong>
+        <span class="stat-sub">${stats.settled} settled picks</span>
+      </div>
+      <div class="stat-card stat-card--win">
+        <span class="stat-label">Wins</span>
+        <strong class="stat-value">${stats.wins}</strong>
+        <span class="stat-sub">correct calls</span>
+      </div>
+      <div class="stat-card stat-card--loss">
+        <span class="stat-label">Losses</span>
+        <strong class="stat-value">${stats.losses}</strong>
+        <span class="stat-sub">missed picks</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Archive</span>
+        <strong class="stat-value">${stats.days}</strong>
+        <span class="stat-sub">${stats.total} total picks · ${stats.locked} locked</span>
+      </div>`;
+  }
+
   function updateHistoryNav(groups){
     const index = historyDateList.indexOf(activeHistoryDate);
     const prevBtn = document.getElementById('historyPrev');
@@ -66,6 +94,7 @@
   }
 
   function renderHistory(){
+    renderTrackRecordStats();
     renderHistoryDateTabs();
     const archive = document.getElementById('historyArchive');
     const groups = VorScore.getHistoryGroups();

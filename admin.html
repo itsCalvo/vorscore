@@ -168,21 +168,32 @@
   </div>
 
   <div class="panel" id="matchPanel">
-    <h2 id="formTitle">Add a new match</h2>
+    <h2 id="formTitle">Add a prediction</h2>
     <div class="grid">
       <div class="span3"><label for="fixture-search">Find a cached fixture</label><div class="autocomplete-wrapper"><input id="fixture-search" type="text" placeholder="Search team, league, or country..." autocomplete="off"><div id="fixture-suggestions" class="suggestions" role="listbox"></div></div><button class="btn-save" id="searchFixturesBtn" type="button">Search fixtures</button><div id="fixtureSearchStatus" class="status-msg" aria-live="polite"></div><div id="fixture-results" class="fixture-results"></div><div id="selectedFixture" class="selected-fixture"></div><input type="hidden" id="fixture-id"><input type="hidden" id="home-team"><input type="hidden" id="away-team"><input type="hidden" id="league-name"><input type="hidden" id="kickoff-time"></div>
       <div class="span3 date-actions"><div><label for="fixtureDate">Fixture date</label><input id="fixtureDate" type="date"></div><button class="today-btn" id="todayFixtureBtn" type="button">Today</button></div>
       <div class="span3 todays-fixtures"><button id="sync-fixtures-btn" class="sync-fixtures-btn" type="button">Sync Today's Fixtures</button></div>
     </div>
     <div class="grid">
-      <div class="span2"><label>Pick</label><select id="f_prediction_pick"><option value="">Select a pick</option><option value="1X2:HOME">HOME</option><option value="1X2:DRAW">DRAW</option><option value="1X2:AWAY">AWAY</option><option value="GOALS:OVER_2_5">OVER 2.5</option><option value="GOALS:UNDER_2_5">UNDER 2.5</option><option value="BTTS:YES">GG YES</option><option value="BTTS:NO">GG NO</option></select></div>
-      <div><label>Trust score (1-10)</label><input id="f_trust" type="number" min="1" max="10"></div>
-
-      <div><label>Best tip</label><input id="f_best_sub" type="text" placeholder="Optional display label"></div>
+      <div><label for="f_home_team">Home team</label><input id="f_home_team" type="text" placeholder="Home team"></div>
+      <div><label for="f_away_team">Away team</label><input id="f_away_team" type="text" placeholder="Away team"></div>
+      <div class="span2"><label for="f_league">League</label><input id="f_league" type="text" placeholder="Competition"></div>
+      <div><label for="f_kickoff">Kickoff (EAT)</label><input id="f_kickoff" type="datetime-local"></div>
+      <div><label for="f_fixture_status">Match status</label><select id="f_fixture_status"><option value="upcoming">Upcoming</option><option value="live">Live</option><option value="finished">Finished</option><option value="postponed">Postponed</option><option value="cancelled">Cancelled</option><option value="suspended">Suspended</option></select></div>
+      <div><label for="f_api_status">API status</label><input id="f_api_status" type="text" placeholder="NS, 1H, HT, FT…"></div>
+      <div><label for="f_home_score">Home score</label><input id="f_home_score" type="number" min="0" placeholder="—"></div>
+      <div><label for="f_away_score">Away score</label><input id="f_away_score" type="number" min="0" placeholder="—"></div>
+      <div class="span2"><label for="f_prediction_pick">Pick</label><select id="f_prediction_pick"><option value="">Select a pick</option><option value="1X2:HOME">HOME</option><option value="1X2:DRAW">DRAW</option><option value="1X2:AWAY">AWAY</option><option value="GOALS:OVER_2_5">OVER 2.5</option><option value="GOALS:UNDER_2_5">UNDER 2.5</option><option value="BTTS:YES">GG YES</option><option value="BTTS:NO">GG NO</option></select></div>
+      <div><label for="f_trust">Confidence (1-10)</label><input id="f_trust" type="number" min="1" max="10"></div>
+      <div class="span3"><label for="f_reason">Reason / notes</label><textarea id="f_reason" rows="2" placeholder="Why this pick? (optional, shown internally)"></textarea></div>
 
       <div>
         <label>Category</label>
-        <select id="f_category"><option value="banker">Banker</option><option value="slip_of_day">Slip Of The Day</option></select>
+        <select id="f_category"><option value="banker">Banker</option><option value="bankers">Bankers</option><option value="slip_of_day">Slip Of The Day</option><option value="all-picks">All Picks</option></select>
+      </div>
+      <div>
+        <label for="f_verdict">Result override</label>
+        <select id="f_verdict"><option value="pending">Auto (from score)</option><option value="WIN">Force WIN</option><option value="LOSS">Force LOSS</option></select>
       </div>
       <div>
         <label>Access</label>
@@ -195,15 +206,28 @@
     </div>
 
     <div class="form-actions">
-      <button class="btn-save" id="saveBtn">Save match</button>
+      <button class="btn-save" id="saveBtn">Save prediction</button>
       <button class="btn-cancel" id="cancelBtn" style="display:none;">Cancel edit</button>
     </div>
     <div class="status-msg" id="formStatus"></div>
   </div>
 
+  <div class="panel" id="livePicksPanel">
+    <h2>Published picks (homepage)</h2>
+    <p class="blog-help">Every pick shown on the public site for the selected date. Edit to tune teams, kickoff, scores, pick, confidence, category, or force a WIN/LOSS.</p>
+    <div class="date-actions">
+      <div><label for="livePicksDate">Show picks for</label><input id="livePicksDate" type="date"></div>
+      <button class="today-btn" id="livePicksTodayBtn" type="button">Today</button>
+    </div>
+    <table style="margin-top:16px">
+      <thead><tr><th>Time</th><th>Match</th><th>Pick</th><th>Conf.</th><th>Status</th><th>Score</th><th>Result</th><th></th></tr></thead>
+      <tbody id="livePickList"></tbody>
+    </table>
+  </div>
+
   <div class="panel" id="draftsPanel">
     <h2>Draft picks</h2>
-    <p class="blog-help">Only unpublished drafts appear here. Published picks show on the public site — view results in <a href="history.html" style="color:var(--gold)">History</a>.</p>
+    <p class="blog-help">Draft predictions are stored in the unified predictions table. Published picks appear on the public site — view results in <a href="history.html" style="color:var(--gold)">Track Record</a>.</p>
     <table>
       <thead><tr><th>Date</th><th>Match</th><th>Pick</th><th>Category</th><th></th></tr></thead>
       <tbody id="draftList"></tbody>
@@ -243,11 +267,12 @@
 </div>
 
 <script src="config.js"></script>
+<script src="js/admin-predictions.js?v=4"></script>
 <script>
   let editingId = null;
   let editingBlogId = null;
   let selectedFixture = null;
-  let editingMatch = null;
+  let editingPrediction = null;
 
   async function checkSession(){
     if(!supabaseClient){
@@ -323,84 +348,18 @@
   function showDash(){
     document.getElementById('loginBox').style.display = 'none';
     document.getElementById('dash').style.display = 'block';
+    document.getElementById('livePicksDate').value = todayDate();
+    loadLivePicks();
     loadDrafts();
     loadBlogPosts();
     initializeFixtureAutocomplete();
   }
 
-  function collectForm(){
-    const fixture = selectedFixture || {};
-    const legacy = editingMatch || {};
-    const fixtureDate = document.getElementById('fixtureDate').value || todayDate();
-    const [predictionMarket = '', predictionSelection = ''] = document.getElementById('f_prediction_pick').value.split(':');
-    const eatParts = fixture.kickoff ? isoToEatParts(fixture.kickoff) : { match_date: legacy.match_date || fixtureDate, kickoff_time: legacy.kickoff_time || '' };
-    const lifecycle = fixture.lifecycle_status || legacy.status || 'upcoming';
-    const matchStatus = lifecycle === 'finished' ? 'finished' : lifecycle === 'live' ? 'live' : 'upcoming';
-    return {
-      external_match_id: fixture.fixture_id || legacy.external_match_id || null,
-      api_provider: fixture.fixture_id ? 'api-football' : (legacy.api_provider || 'manual'),
-      api_status: fixture.api_status || legacy.api_status || 'NS',
-      match_date: normalizeMatchDate(eatParts.match_date || fixtureDate),
-      kickoff_time: eatParts.kickoff_time || legacy.kickoff_time || '',
-      status: matchStatus,
-      competition_id: fixture.league?.id || fixture.league_id || legacy.competition_id || null,
-      competition_country: fixture.league?.country || fixture.country || legacy.competition_country || null,
-      league: fixture.league?.name || fixture.league || legacy.league || null,
-      competition_logo_url: fixture.league?.logo || fixture.league_logo || legacy.competition_logo_url || null,
-      venue: fixture.venue || legacy.venue || null,
-      home_team: fixture.home?.name || fixture.home_team || fixture.home_name || legacy.home_team || '',
-      home_team_id: fixture.home?.id || fixture.home_team_id || legacy.home_team_id || null,
-      home_badge_url: fixture.home?.logo || fixture.home_logo || legacy.home_badge_url || null,
-      away_team: fixture.away?.name || fixture.away_team || fixture.away_name || legacy.away_team || '',
-      away_team_id: fixture.away?.id || fixture.away_team_id || legacy.away_team_id || null,
-      away_badge_url: fixture.away?.logo || fixture.away_logo || legacy.away_badge_url || null,
-      odds_home: fixture.odds_home ?? legacy.odds_home ?? null,
-      odds_draw: fixture.odds_draw ?? legacy.odds_draw ?? null,
-      odds_away: fixture.odds_away ?? legacy.odds_away ?? null,
-      tip: predictionSelection || null,
-      tip_sub: predictionMarket || null,
-      prediction_market: predictionMarket || null,
-      prediction_selection: predictionSelection || null,
-      goals_selection: legacy.goals_selection || null,
-      goals_tip: legacy.goals_tip || null,
-      goals_sub: legacy.goals_sub || null,
-      btts_selection: legacy.btts_selection || null,
-      gg_tip: legacy.gg_tip || null,
-      gg_sub: legacy.gg_sub || null,
-      best_tip: document.getElementById('f_best_sub').value,
-      best_sub: document.getElementById('f_best_sub').value,
-      trust_score: parseInt(document.getElementById('f_trust').value, 10) || null,
-      category: document.getElementById('f_category').value,
-      is_locked: document.getElementById('f_locked').value === 'true',
-      publication_status: document.getElementById('f_publication_status').value,
-      next_sync_at: fixture.fixture_id ? new Date().toISOString() : (legacy.next_sync_at || null),
-    };
-  }
-
-  function fillForm(m){
-    selectedFixture = m.external_match_id ? {
-      fixture_id: m.external_match_id,
-      kickoff: eatKickoffIso(m.match_date, m.kickoff_time),
-      api_status: m.api_status,
-      venue: m.venue || null,
-      league: { id: m.competition_id, name: m.league, logo: m.competition_logo_url },
-      home: { id: m.home_team_id, name: m.home_team, logo: m.home_badge_url },
-      away: { id: m.away_team_id, name: m.away_team, logo: m.away_badge_url },
-    } : null;
-    document.getElementById('selectedFixture').textContent = selectedFixture ? `${m.home_team} vs ${m.away_team} · ${m.league || 'Competition'} · Fixture ${m.external_match_id}` : 'Legacy manual match';
-    document.getElementById('f_prediction_pick').value = m.prediction_market && m.prediction_selection ? `${m.prediction_market}:${m.prediction_selection}` : '';
-    document.getElementById('f_trust').value = m.trust_score ?? '';
-    document.getElementById('f_best_sub').value = m.best_sub || '';
-    document.getElementById('f_category').value = m.category || 'banker';
-    document.getElementById('f_locked').value = String(m.is_locked);
-    document.getElementById('f_publication_status').value = m.publication_status || 'published';
-  }
-
   function resetForm(){
-    document.querySelectorAll('#matchPanel input').forEach(el => { el.value = ''; });
+    document.querySelectorAll('#matchPanel input:not([type=hidden]), #matchPanel textarea').forEach(el => { if(el.type !== 'date') el.value = ''; });
     document.getElementById('fixtureDate').value = todayDate();
     editingId = null;
-    editingMatch = null;
+    editingPrediction = null;
     selectedFixture = null;
     document.getElementById('selectedFixture').textContent = '';
     document.getElementById('fixture-results').innerHTML = '';
@@ -411,12 +370,17 @@
     document.getElementById('away-team').value = '';
     document.getElementById('league-name').value = '';
     document.getElementById('kickoff-time').value = '';
-    document.getElementById('formTitle').textContent = 'Add a new match';
+    document.getElementById('formTitle').textContent = 'Add a prediction';
     document.getElementById('cancelBtn').style.display = 'none';
     document.getElementById('f_prediction_pick').value = '';
     document.getElementById('f_trust').value = '';
-    document.getElementById('f_best_sub').value = '';
+    document.getElementById('f_reason').value = '';
     document.getElementById('f_category').value = 'banker';
+    document.getElementById('f_fixture_status').value = 'upcoming';
+    document.getElementById('f_api_status').value = '';
+    document.getElementById('f_home_score').value = '';
+    document.getElementById('f_away_score').value = '';
+    document.getElementById('f_verdict').value = 'pending';
     document.getElementById('f_locked').value = 'true';
     document.getElementById('f_publication_status').value = 'published';
   }
@@ -430,6 +394,11 @@
   document.getElementById('todayFixtureBtn').onclick = () => {
     document.getElementById('fixtureDate').value = todayDate();
   };
+  document.getElementById('livePicksTodayBtn').onclick = () => {
+    document.getElementById('livePicksDate').value = todayDate();
+    loadLivePicks();
+  };
+  document.getElementById('livePicksDate').addEventListener('change', loadLivePicks);
 
   const aliases = {
     'man utd': 'manchester united',
@@ -549,6 +518,14 @@
     selectedFixture = normalizeFixture(fixture);
     const kickoff = selectedFixture.kickoff || '';
     document.getElementById('fixture-id').value = selectedFixture.fixture_id || '';
+    document.getElementById('f_home_team').value = selectedFixture.home_team;
+    document.getElementById('f_away_team').value = selectedFixture.away_team;
+    document.getElementById('f_league').value = selectedFixture.league || '';
+    document.getElementById('f_kickoff').value = kickoff ? kickoff.slice(0, 16) : '';
+    document.getElementById('f_fixture_status').value = selectedFixture.lifecycle_status === 'finished' ? 'finished' : selectedFixture.lifecycle_status === 'live' ? 'live' : 'upcoming';
+    document.getElementById('f_api_status').value = selectedFixture.api_status || '';
+    document.getElementById('f_home_score').value = selectedFixture.home_score ?? '';
+    document.getElementById('f_away_score').value = selectedFixture.away_score ?? '';
     document.getElementById('home-team').value = selectedFixture.home_team;
     document.getElementById('away-team').value = selectedFixture.away_team;
     document.getElementById('league-name').value = selectedFixture.league;
@@ -793,90 +770,183 @@
   }
 
   document.getElementById('saveBtn').onclick = async () => {
-    const payload = collectForm();
     const statusEl = document.getElementById('formStatus');
-    if(!editingId && !selectedFixture){
-      statusEl.textContent = 'Search for a fixture and select the correct result first.';
+    try{
+      await AdminPredictions.savePredictionPick({
+        editingId,
+        existingFixtureId: editingPrediction?.fixture_id || selectedFixture?.fixture_id || null,
+      });
+      statusEl.textContent = editingId
+        ? 'Prediction updated.'
+        : (document.getElementById('f_publication_status').value === 'published'
+          ? 'Prediction published — it will appear on the public site.'
+          : 'Draft saved.');
+      statusEl.className = 'status-msg ok';
+      resetForm();
+      loadLivePicks();
+      loadDrafts();
+    }catch(error){
+      statusEl.textContent = error.message || 'Save failed.';
       statusEl.className = 'status-msg err';
-      return;
     }
-    if(!payload.prediction_selection && !payload.goals_selection && !payload.btts_selection){
-      statusEl.textContent = 'Choose at least one prediction pick.';
-      statusEl.className = 'status-msg err';
-      return;
-    }
-    let error;
-    if(editingId){
-      ({ error } = await supabaseClient.from('matches').update(payload).eq('id', editingId));
-    } else {
-      ({ error } = await supabaseClient.from('matches').insert(payload));
-    }
-    if(error){
-      statusEl.textContent = error.code === '23505' ? 'That API fixture is already linked to another match.' : error.message;
-      statusEl.className = 'status-msg err';
-      return;
-    }
-    statusEl.textContent = editingId
-      ? 'Match updated.'
-      : (payload.publication_status === 'published' ? 'Match published — it will appear on the public site.' : 'Draft saved — publish it to show on the public site.');
-    statusEl.className = 'status-msg ok';
-    resetForm();
-    loadDrafts();
   };
 
-  function pickLabel(market, selection){
-    if(!selection) return '—';
-    const labels = { OVER_2_5:'OVER 2.5', UNDER_2_5:'UNDER 2.5', YES:'GG YES', NO:'GG NO', HOME:'HOME', DRAW:'DRAW', AWAY:'AWAY' };
-    return labels[selection] || selection.replaceAll('_', ' ');
+  function pickLabelFromRow(row){
+    if(row.market && row.selection) return AdminPredictions.pickDisplayText(row.market, row.selection);
+    return row.pick || '—';
+  }
+
+  function rowStatusLabel(row){
+    const fixture = AdminPredictions.fixtureFromRow(row);
+    const api = fixture?.api_status || row.api_status || row.final_status;
+    const lifecycle = fixture?.status || row.status || 'upcoming';
+    if(api) return String(api).toUpperCase();
+    return lifecycle;
+  }
+
+  function rowScoreLabel(row){
+    const fixture = AdminPredictions.fixtureFromRow(row);
+    const home = fixture?.home_score ?? row.home_score;
+    const away = fixture?.away_score ?? row.away_score;
+    return home != null && away != null ? `${home} : ${away}` : '—';
+  }
+
+  function rowVerdictLabel(row){
+    const verdict = String(row.verdict || row.result || '').toUpperCase();
+    if(verdict === 'WIN') return '<span class="prediction-result win">WIN</span>';
+    if(verdict === 'LOSS') return '<span class="prediction-result loss">LOSS</span>';
+    return '<span class="match-status">pending</span>';
+  }
+
+  function categoryLabel(category){
+    if(category === 'slip_of_day') return 'Slip Of The Day';
+    if(category === 'bankers') return 'Bankers';
+    if(category === 'all-picks') return 'All Picks';
+    return 'Banker';
+  }
+
+  async function loadLivePicks(){
+    const tbody = document.getElementById('livePickList');
+    const date = document.getElementById('livePicksDate').value || todayDate();
+    try{
+      const data = await AdminPredictions.loadPublishedPredictions(date);
+      if(!data.length){
+        tbody.innerHTML = `<tr><td colspan="8">No published picks for ${date}. Sync fixtures or add picks above.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.map(row => `
+        <tr>
+          <td>${row.fixture_date}<br><span style="color:var(--text-dim)">${formatStoredKickoffEat(row.kickoff_time || '')}</span></td>
+          <td>${row.home_team} vs ${row.away_team}${row.league ? `<div class="match-status">${row.league}</div>` : ''}<div class="match-status">${categoryLabel(row.category)}</div></td>
+          <td>${pickLabelFromRow(row)}</td>
+          <td>${row.confidence != null ? Math.round(Number(row.confidence) / 10) : '—'}</td>
+          <td><span class="match-status ${rowStatusLabel(row) === 'FT' || rowStatusLabel(row) === 'FINISHED' ? 'finished' : (['1H','2H','HT','LIVE'].includes(rowStatusLabel(row)) ? 'live' : '')}">${rowStatusLabel(row)}</span></td>
+          <td>${rowScoreLabel(row)}</td>
+          <td>${rowVerdictLabel(row)}</td>
+          <td class="row-actions">
+            <span class="icon-link" onclick='editPrediction(${JSON.stringify(row).replace(/'/g,"&#39;")})'>Edit</span>
+            <span class="icon-link danger" onclick="deletePrediction('${row.id}')">Delete</span>
+          </td>
+        </tr>`).join('');
+    }catch(error){
+      tbody.innerHTML = `<tr><td colspan="8">${error.message}</td></tr>`;
+    }
   }
 
   async function loadDrafts(){
-    const { data, error } = await supabaseClient.from('matches').select('*').eq('publication_status', 'draft').order('match_date', { ascending:false }).order('kickoff_time');
     const tbody = document.getElementById('draftList');
-    if(error){ tbody.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; return; }
-    if(!data.length){ tbody.innerHTML = `<tr><td colspan="5">No drafts — new picks publish straight to the site unless you choose "Save as draft".</td></tr>`; return; }
-    tbody.innerHTML = data.map(m => `
-      <tr>
-        <td>${m.match_date}<br><span style="color:var(--text-dim)">${formatStoredKickoffEat(m.kickoff_time)}</span></td>
-        <td>${m.home_team} vs ${m.away_team}${m.league ? `<div class="match-status">${m.league}</div>` : ''}</td>
-        <td>${pickLabel(m.prediction_market, m.prediction_selection)}</td>
-        <td>${m.category === 'slip_of_day' ? 'Slip Of The Day' : 'Banker'}</td>
-        <td class="row-actions">
-          <span class="icon-link" onclick='editMatch(${JSON.stringify(m).replace(/'/g,"&#39;")})'>Edit</span>
-          <span class="icon-link" onclick='publishDraft(${JSON.stringify(m).replace(/'/g,"&#39;")})'>Publish</span>
-          <span class="icon-link danger" data-id="${m.id}" onclick="deleteMatch('${m.id}')">Delete</span>
-        </td>
-      </tr>`).join('');
+    try{
+      const data = await AdminPredictions.loadDraftPredictions();
+      if(!data.length){
+        tbody.innerHTML = '<tr><td colspan="5">No drafts — new picks publish straight to the site unless you choose "Save as draft".</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(row => `
+        <tr>
+          <td>${row.fixture_date}<br><span style="color:var(--text-dim)">${formatStoredKickoffEat(row.kickoff_time || '')}</span></td>
+          <td>${row.home_team} vs ${row.away_team}${row.league ? `<div class="match-status">${row.league}</div>` : ''}</td>
+          <td>${pickLabelFromRow(row)}</td>
+          <td>${row.category === 'slip_of_day' ? 'Slip Of The Day' : 'Banker'}</td>
+          <td class="row-actions">
+            <span class="icon-link" onclick='editPrediction(${JSON.stringify(row).replace(/'/g,"&#39;")})'>Edit</span>
+            <span class="icon-link" onclick='publishDraft(${JSON.stringify(row).replace(/'/g,"&#39;")})'>Publish</span>
+            <span class="icon-link danger" onclick="deletePrediction('${row.id}')">Delete</span>
+          </td>
+        </tr>`).join('');
+    }catch(error){
+      tbody.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`;
+    }
   }
 
-  async function publishDraft(match){
-    const { error } = await supabaseClient.from('matches').update({ publication_status: 'published' }).eq('id', match.id);
-    if(error){
+  async function publishDraft(row){
+    try{
+      await AdminPredictions.publishPrediction(row.id);
+      document.getElementById('formStatus').textContent = `${row.home_team} vs ${row.away_team} is now live on the public site.`;
+      document.getElementById('formStatus').className = 'status-msg ok';
+      loadLivePicks();
+      loadDrafts();
+    }catch(error){
       document.getElementById('formStatus').textContent = error.message;
       document.getElementById('formStatus').className = 'status-msg err';
-      return;
     }
-    document.getElementById('formStatus').textContent = `${match.home_team} vs ${match.away_team} is now live on the public site.`;
-    document.getElementById('formStatus').className = 'status-msg ok';
-    loadDrafts();
   }
 
-  function editMatch(m){
-    editingId = m.id;
-    editingMatch = m;
-    fillForm(m);
-    document.getElementById('formTitle').textContent = 'Edit match';
+  function editPrediction(row){
+    editingId = row.id;
+    editingPrediction = row;
+    const fixture = AdminPredictions.fixtureFromRow(row);
+    const homeTeam = fixture?.home_team || row.home_team || '';
+    const awayTeam = fixture?.away_team || row.away_team || '';
+    const league = fixture?.league || row.league || '';
+    const kickoff = fixture?.kickoff || row.kickoff || '';
+    const fixtureDate = fixture?.fixture_date || row.fixture_date || todayDate();
+    selectedFixture = row.fixture_id ? normalizeFixture({
+      fixture_id: row.fixture_id,
+      kickoff,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      league,
+      source: row.fixture_id > 0 ? 'api' : 'admin',
+    }) : null;
+    document.getElementById('fixtureDate').value = fixtureDate;
+    document.getElementById('fixture-id').value = row.fixture_id || '';
+    document.getElementById('f_home_team').value = homeTeam;
+    document.getElementById('f_away_team').value = awayTeam;
+    document.getElementById('f_league').value = league;
+    document.getElementById('f_kickoff').value = kickoff ? String(kickoff).slice(0, 16) : '';
+    document.getElementById('f_fixture_status').value = fixture?.status || row.status || 'upcoming';
+    document.getElementById('f_api_status').value = fixture?.api_status || row.api_status || row.final_status || '';
+    document.getElementById('f_home_score').value = (fixture?.home_score ?? row.home_score) ?? '';
+    document.getElementById('f_away_score').value = (fixture?.away_score ?? row.away_score) ?? '';
+    document.getElementById('f_prediction_pick').value = row.market && row.selection ? `${row.market}:${row.selection}` : '';
+    document.getElementById('f_trust').value = row.confidence != null ? Math.round(Number(row.confidence) / 10) : '';
+    document.getElementById('f_reason').value = row.reason || '';
+    document.getElementById('f_category').value = row.category || 'banker';
+    document.getElementById('f_locked').value = String(row.is_locked ?? true);
+    document.getElementById('f_publication_status').value = row.publication_status || 'published';
+    const verdict = String(row.verdict || row.result || '').toUpperCase();
+    document.getElementById('f_verdict').value = verdict === 'WIN' ? 'WIN' : verdict === 'LOSS' ? 'LOSS' : 'pending';
+    document.getElementById('selectedFixture').textContent = row.fixture_id
+      ? `Editing fixture ${row.fixture_id}: ${homeTeam} vs ${awayTeam}`
+      : 'Manual fixture fields';
+    document.getElementById('formTitle').textContent = 'Edit prediction';
     document.getElementById('cancelBtn').style.display = 'inline-block';
-    window.scrollTo({ top:0, behavior:'smooth' });
+    document.getElementById('matchPanel').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
-  async function deleteMatch(id){
-    if(!confirm('Delete this match? This cannot be undone.')) return;
-    await supabaseClient.from('matches').delete().eq('id', id);
+  async function deletePrediction(id){
+    if(!confirm('Delete this prediction? This cannot be undone.')) return;
+    await AdminPredictions.deletePrediction(id);
+    loadLivePicks();
     loadDrafts();
   }
 
-  setInterval(() => { if(document.getElementById('dash').style.display === 'block') loadDrafts(); }, 120000);
+  setInterval(() => {
+    if(document.getElementById('dash').style.display === 'block'){
+      loadLivePicks();
+      loadDrafts();
+    }
+  }, 120000);
 
   checkSession();
 </script>

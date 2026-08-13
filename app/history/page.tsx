@@ -1,10 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import {
-  enrichMatchesFromFixtures,
   historyDisplayStatus,
   isMatchFinished,
   matchScores,
 } from '@/lib/match-helpers';
+import { getHistoryPredictions, type Prediction } from '@/lib/predictions';
 import { resolveResult } from '@/lib/resolve-result';
 
 type HistoryTip = {
@@ -16,11 +15,11 @@ type HistoryTip = {
   away_team: string;
   home_score: number | null;
   away_score: number | null;
-  score?: string | null;
   pick: string;
   status: string;
   api_status: string | null;
   final_status?: string | null;
+  is_locked?: boolean;
 };
 
 const PICK_LABELS: Record<string, string> = {
@@ -37,15 +36,18 @@ const PICK_LABELS: Record<string, string> = {
   AWAY: 'AWAY',
 };
 
-function pickLabel(market?: string | null, selection?: string | null): string {
-  if (!selection) return '—';
-  if (market === '1X2') return PICK_LABELS[selection] || selection.replaceAll('_', ' ');
-  if (market === 'GOALS') return PICK_LABELS[selection] || selection.replaceAll('_', ' ');
-  if (market === 'BTTS') return PICK_LABELS[selection] || selection.replaceAll('_', ' ');
-  return PICK_LABELS[selection] || selection.replaceAll('_', ' ');
+function pickLabelFromPrediction(row: Prediction): string {
+  if (row.is_locked) return '🔒 Subscriber pick';
+  return row.pick || '—';
 }
 
-function formatKickoffEat(kickoffTime?: string | null): string {
+function formatKickoffEat(kickoff?: string | null, kickoffTime?: string | null): string {
+  if (kickoff) {
+    const date = new Date(kickoff);
+    if (!Number.isNaN(date.getTime())) {
+      return `${date.toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi', hour: '2-digit', minute: '2-digit', hour12: false })} EAT`;
+    }
+  }
   if (!kickoffTime) return '—';
   return kickoffTime.includes('EAT') ? kickoffTime : `${kickoffTime} EAT`;
 }
@@ -60,28 +62,21 @@ function formatHistoryDateHeading(dateStr: string): string {
   return `${label} · ${dateStr}`;
 }
 
-function toHistoryTip(row: Record<string, unknown>): HistoryTip {
-  const isLocked = Boolean(row.is_locked);
-  const market = row.prediction_market as string | null | undefined;
-  const selection = row.prediction_selection as string | null | undefined;
-  const pick = isLocked ? '🔒 Subscriber pick' : pickLabel(market, selection);
-
+function toHistoryTip(row: Prediction & { kickoff_time?: string | null; market?: string | null; selection?: string | null }): HistoryTip {
   return {
-    fixture_id: (row.external_match_id ?? row.fixture_id ?? row.id) as string | number,
-    match_date: String(row.match_date ?? ''),
-    time_eat: formatKickoffEat(row.kickoff_time as string | null),
-    league: (row.league as string | null) ?? null,
-    home_team: String(row.home_team ?? ''),
-    away_team: String(row.away_team ?? ''),
-    home_score: row.home_score as number | null,
-    away_score: row.away_score as number | null,
-    score: row.score as string | null,
-    pick,
-    status: String(row.status ?? 'upcoming'),
-    api_status: (row.api_status as string | null) ?? null,
-    // prefer fixture-level status when present
-    fixture_status: (row as any).fixture_status ?? (row as any).fixtures?.status ?? null,
-    final_status: (row.final_status as string | null) ?? null,
+    fixture_id: row.fixture_id ?? row.id ?? `${row.home_team}-${row.away_team}`,
+    match_date: String(row.fixture_date ?? ''),
+    time_eat: formatKickoffEat(row.kickoff, row.kickoff_time),
+    league: row.league ?? null,
+    home_team: row.home_team,
+    away_team: row.away_team,
+    home_score: row.home_score ?? null,
+    away_score: row.away_score ?? null,
+    pick: pickLabelFromPrediction(row),
+    status: String(row.final_status ?? 'upcoming'),
+    api_status: row.final_status ?? null,
+    final_status: row.final_status ?? null,
+    is_locked: Boolean((row as Prediction & { is_locked?: boolean }).is_locked),
   };
 }
 
@@ -98,29 +93,6 @@ function groupByDate(history: HistoryTip[]): [string, HistoryTip[]][] {
     return byDate;
   }, {});
   return Object.entries(groups).sort(([left], [right]) => right.localeCompare(left));
-}
-
-async function loadHistory(): Promise<HistoryTip[]> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return [];
-
-  const supabase = createClient(url, key);
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
-
-  const { data, error } = await supabase
-    .from('matches')
-    .select(
-      'id, external_match_id, match_date, kickoff_time, league, home_team, away_team, home_score, away_score, status, api_status, is_locked, prediction_market, prediction_selection, publication_status',
-    )
-    .neq('publication_status', 'draft')
-    .or(`status.eq.finished,match_date.lt.${today}`)
-    .order('match_date', { ascending: false })
-    .order('kickoff_time', { ascending: false });
-
-  if (error || !data) return [];
-  const enriched = await enrichMatchesFromFixtures(supabase, data as Record<string, unknown>[]);
-  return enriched.map(row => toHistoryTip(row));
 }
 
 function HistoryTable({ tips }: { tips: HistoryTip[] }) {
@@ -148,7 +120,7 @@ function HistoryTable({ tips }: { tips: HistoryTip[] }) {
             effectiveStatus,
             tip.pick.includes('Subscriber pick'),
           );
-          const displayStatus = (tip.fixture_status ?? tip.final_status ?? historyDisplayStatus(tip));
+          const displayStatus = tip.final_status ?? historyDisplayStatus(tip);
           const color = verdictClassName(verdict);
 
           return (
@@ -173,12 +145,12 @@ function HistoryTable({ tips }: { tips: HistoryTip[] }) {
 }
 
 export default async function HistoryPage() {
-  const history = await loadHistory();
+  const history = (await getHistoryPredictions()).map(row => toHistoryTip(row));
   const grouped = groupByDate(history);
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <h1 className="mb-6 text-3xl font-bold">History</h1>
+      <h1 className="mb-6 text-3xl font-bold">Track Record</h1>
 
       {grouped.length === 0 ? (
         <p className="text-gray-500">No finished predictions yet.</p>

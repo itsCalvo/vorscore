@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// settle-predictions: sync due API fixtures and settle linked predictions (same pipeline as sync-fixtures).
 const finishedStatuses = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
 const liveStatuses = new Set(['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE']);
 
@@ -88,7 +89,7 @@ Deno.serve(async request => {
   const configuredInterval = Number(Deno.env.get('TRACKING_INTERVAL_SECONDS') || 120);
   const trackingIntervalSeconds = Number.isFinite(configuredInterval) ? Math.max(60, configuredInterval) : 120;
 
-  if (!supabaseUrl || !serviceRoleKey || !apiKey) return json({ error: 'Sync is not configured.' }, 503);
+  if (!supabaseUrl || !serviceRoleKey || !apiKey) return json({ error: 'Settlement is not configured.' }, 503);
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const nowIso = new Date().toISOString();
@@ -111,11 +112,6 @@ Deno.serve(async request => {
   const payload = await apiResponse.json();
 
   if (!apiResponse.ok || (payload.errors && Object.keys(payload.errors).length)) {
-    await Promise.all(fixtures.map(row => admin.from('fixtures').update({
-      sync_error: 'API-Football request failed',
-      last_synced_at: nowIso,
-      updated_at: nowIso,
-    }).eq('fixture_id', row.fixture_id)));
     return json({ error: 'API-Football request failed.', details: payload.errors || null }, 502);
   }
 
@@ -125,14 +121,7 @@ Deno.serve(async request => {
 
   for (const fixture of fixtures) {
     const item: any = byId.get(fixture.fixture_id);
-    if (!item) {
-      await admin.from('fixtures').update({
-        sync_error: 'Fixture not found in API response',
-        last_synced_at: nowIso,
-        updated_at: nowIso,
-      }).eq('fixture_id', fixture.fixture_id);
-      continue;
-    }
+    if (!item) continue;
 
     const apiStatus = item.fixture?.status?.short || 'TBD';
     const status = lifecycleStatus(apiStatus);
@@ -141,16 +130,13 @@ Deno.serve(async request => {
     const kickoff = item.fixture?.date || fixture.kickoff;
     const syncedAt = new Date().toISOString();
 
-    const fixtureUpdate = {
+    await admin.from('fixtures').update({
       fixture_date: isoToEatDate(kickoff) || fixture.fixture_date,
       kickoff,
       league: item.league?.name || fixture.league,
       country: item.league?.country || fixture.country,
       home_team: item.teams?.home?.name || fixture.home_team,
       away_team: item.teams?.away?.name || fixture.away_team,
-      home_logo: item.teams?.home?.logo || fixture.home_logo,
-      away_logo: item.teams?.away?.logo || fixture.away_logo,
-      venue: item.fixture?.venue?.name || fixture.venue,
       status,
       api_status: apiStatus,
       home_score: homeScore,
@@ -160,24 +146,20 @@ Deno.serve(async request => {
       next_sync_at: nextSync(status, kickoff, trackingIntervalSeconds),
       sync_error: null,
       updated_at: syncedAt,
-    };
-
-    const { error: fixtureError } = await admin.from('fixtures').update(fixtureUpdate).eq('fixture_id', fixture.fixture_id);
-    if (fixtureError) continue;
+    }).eq('fixture_id', fixture.fixture_id);
     synced++;
 
     const { data: predictions } = await admin
       .from('predictions')
-      .select('id, market, selection, pick, verdict, result')
+      .select('id, market, selection, pick, verdict')
       .eq('fixture_id', fixture.fixture_id);
 
     if (status === 'finished' && homeScore != null && awayScore != null && predictions?.length) {
       for (const prediction of predictions) {
         const { market, selection } = parsePick(prediction);
         const verdict = evaluateSelection(market, selection, homeScore, awayScore);
-        if (!verdict) continue;
-        if (prediction.verdict === 'WIN' || prediction.verdict === 'LOSS') continue;
-        const { error: settleError } = await admin.from('predictions').update({
+        if (!verdict || prediction.verdict === 'WIN' || prediction.verdict === 'LOSS') continue;
+        const { error } = await admin.from('predictions').update({
           verdict,
           result: verdict.toLowerCase(),
           final_status: apiStatus,
@@ -187,17 +169,8 @@ Deno.serve(async request => {
           api_status: apiStatus,
           updated_at: syncedAt,
         }).eq('id', prediction.id);
-        if (!settleError) settled++;
+        if (!error) settled++;
       }
-    } else if (predictions?.length) {
-      await admin.from('predictions').update({
-        final_status: apiStatus,
-        home_score: homeScore,
-        away_score: awayScore,
-        status,
-        api_status: apiStatus,
-        updated_at: syncedAt,
-      }).eq('fixture_id', fixture.fixture_id);
     }
   }
 

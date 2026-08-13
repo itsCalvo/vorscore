@@ -17,6 +17,21 @@ export type Prediction = {
   away_score?: number | null;
   final_status?: string | null;
   verdict?: string | null;
+  publication_status?: string | null;
+  is_locked?: boolean;
+  kickoff_time?: string | null;
+  market?: string | null;
+  selection?: string | null;
+  fixtures?: {
+    status?: string | null;
+    api_status?: string | null;
+    home_score?: number | null;
+    away_score?: number | null;
+    kickoff?: string | null;
+    league?: string | null;
+    home_team?: string | null;
+    away_team?: string | null;
+  } | null;
 };
 
 export type SplitPredictions = {
@@ -26,6 +41,11 @@ export type SplitPredictions = {
 };
 
 const EAT_TIMEZONE = 'Africa/Nairobi';
+const FIXTURE_SELECT_TIERS = [
+  'fixture_id, fixture_date, kickoff, league, home_team, away_team, status, api_status, home_score, away_score, current_minute, source',
+  'fixture_id, fixture_date, kickoff, league, home_team, away_team, status, api_status, home_score, away_score',
+  'fixture_id, kickoff, league, home_team, away_team, home_score, away_score, status, api_status',
+];
 
 export function todayFixtureDate(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: EAT_TIMEZONE }).format(new Date());
@@ -48,6 +68,52 @@ function normalizeFixtureDate(value: unknown): string {
   return String(value).slice(0, 10);
 }
 
+function isPublishedRow(row: Record<string, unknown>): boolean {
+  return row.publication_status !== 'draft';
+}
+
+type FixtureRow = NonNullable<Prediction['fixtures']> & { fixture_id?: number | null };
+
+async function attachFixturesToPredictions(
+  supabase: NonNullable<ReturnType<typeof createSupabaseServerClient>>,
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  if (!rows.length) return rows;
+  const ids = [...new Set(rows.map(row => row.fixture_id).filter(id => id != null))] as number[];
+  if (!ids.length) return rows;
+
+  let fixtures: FixtureRow[] = [];
+  for (const select of FIXTURE_SELECT_TIERS) {
+    const { data, error } = await supabase.from('fixtures').select(select).in('fixture_id', ids);
+    if (!error) {
+      fixtures = (data ?? []) as FixtureRow[];
+      break;
+    }
+    if (!/column|42703/i.test(error.message || '')) break;
+  }
+
+  const byId = Object.fromEntries(fixtures.map(fixture => [String(fixture.fixture_id), fixture]));
+
+  return rows.map(row => {
+    const fixture = row.fixture_id != null ? byId[String(row.fixture_id)] : null;
+    return fixture ? { ...row, fixtures: fixture } : row;
+  });
+}
+
+function mapPredictionRow(row: Record<string, unknown>): Prediction {
+  const fixtureRaw = row.fixtures as Prediction['fixtures'] | Prediction['fixtures'][] | null | undefined;
+  const fixture = Array.isArray(fixtureRaw) ? (fixtureRaw[0] ?? null) : (fixtureRaw ?? null);
+  return {
+    ...(row as Prediction),
+    home_team: String(fixture?.home_team ?? row.home_team ?? ''),
+    away_team: String(fixture?.away_team ?? row.away_team ?? ''),
+    league: (fixture?.league ?? row.league) as string | null,
+    home_score: (fixture?.home_score ?? row.home_score) as number | null,
+    away_score: (fixture?.away_score ?? row.away_score) as number | null,
+    final_status: (fixture?.api_status ?? fixture?.status ?? row.final_status ?? row.api_status) as string | null,
+  };
+}
+
 export async function getTodayPredictions(): Promise<Prediction[]> {
   const supabase = createSupabaseServerClient();
   if (!supabase) return [];
@@ -55,7 +121,7 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
   async function fetchByDate(date: string) {
     const { data, error } = await supabase
       .from('predictions')
-      .select(`id, fixture_id, fixture_date, kickoff, league, home_team, away_team, pick, confidence, category, reason, result, home_score, away_score, final_status, verdict, fixtures ( status, api_status, home_score, away_score )`)
+      .select('*')
       .eq('fixture_date', date)
       .order('confidence', { ascending: false });
 
@@ -63,9 +129,10 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
       console.error('Failed to load predictions:', error.message);
       return null;
     }
-    console.log('[VorScore] prediction row sample', data?.[0]);
 
-    return (data ?? []) as Prediction[];
+    const published = (data ?? []).filter(isPublishedRow);
+    const enriched = await attachFixturesToPredictions(supabase, published);
+    return enriched.map(row => mapPredictionRow(row));
   }
 
   let rows: Prediction[] = [];
@@ -73,14 +140,7 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
     const batch = await fetchByDate(date);
     if (batch === null) return [];
     if (batch.length) {
-      // prefer fixture-joined values when present
-      rows = (batch as any[]).map(r => ({
-        ...r,
-        fixture_status: (r.fixtures as any)?.status ?? r.status,
-        api_status: (r.fixtures as any)?.api_status ?? r.api_status,
-        home_score: (r.fixtures as any)?.home_score ?? r.home_score,
-        away_score: (r.fixtures as any)?.away_score ?? r.away_score,
-      }));
+      rows = batch;
       break;
     }
   }
@@ -88,20 +148,24 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
   if (!rows.length) {
     const { data: all, error } = await supabase
       .from('predictions')
-      .select(`id, fixture_id, fixture_date, kickoff, league, home_team, away_team, pick, confidence, category, reason, result, home_score, away_score, final_status, verdict, fixtures ( status, api_status, home_score, away_score )`)
+      .select('*')
       .order('confidence', { ascending: false })
       .limit(100);
 
     if (!error && all?.length) {
-      console.log('[VorScore] prediction row sample', all?.[0]);
+      const enriched = await attachFixturesToPredictions(supabase, all.filter(isPublishedRow));
       const eatToday = todayFixtureDate();
-      rows = all.filter(row => normalizeFixtureDate(row.fixture_date) === eatToday) as Prediction[];
+      rows = enriched
+        .map(row => mapPredictionRow(row))
+        .filter(row => normalizeFixtureDate(row.fixture_date) === eatToday);
       if (!rows.length) {
-        const latestDate = all.reduce((max, row) => {
-          const d = normalizeFixtureDate(row.fixture_date);
+        const latestDate = enriched.reduce((max, row) => {
+          const d = normalizeFixtureDate((row as Prediction).fixture_date);
           return d > max ? d : max;
         }, '');
-        rows = all.filter(row => normalizeFixtureDate(row.fixture_date) === latestDate) as Prediction[];
+        rows = enriched
+          .map(row => mapPredictionRow(row))
+          .filter(row => normalizeFixtureDate(row.fixture_date) === latestDate);
       }
     }
   }
@@ -109,10 +173,28 @@ export async function getTodayPredictions(): Promise<Prediction[]> {
   return rows;
 }
 
+export async function getHistoryPredictions(): Promise<Prediction[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+
+  const today = todayFixtureDate();
+  const { data, error } = await supabase
+    .from('predictions')
+    .select('*')
+    .lt('fixture_date', today)
+    .order('fixture_date', { ascending: false })
+    .order('kickoff', { ascending: false })
+    .limit(500);
+
+  if (error || !data) return [];
+  const enriched = await attachFixturesToPredictions(supabase, data.filter(isPublishedRow));
+  return enriched.map(row => mapPredictionRow(row));
+}
+
 export function splitPredictions(predictions: Prediction[]): SplitPredictions {
   return {
     betOfTheDay: predictions[0] ?? null,
-    bankers: predictions.filter(p => p.category === 'bankers'),
+    bankers: predictions.filter(p => p.category === 'bankers' || p.category === 'banker'),
     allPicks: predictions.slice(1),
   };
 }
