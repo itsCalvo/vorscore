@@ -26,7 +26,7 @@ function listFrom(value: unknown): any[] {
   return [];
 }
 function leaguePath(league: any): string | null {
-  const raw = league?.slug ?? league?.path ?? league?.api_slug ?? league?.league_slug ?? league?.url_path;
+  const raw = league?.league ?? league?.slug ?? league?.path ?? league?.api_slug ?? league?.league_slug ?? league?.url_path;
   if (typeof raw === "string" && raw.trim()) return raw.replace(/^\/+|\/+$/g, "").replace(/^leagues\//, "");
   return null;
 }
