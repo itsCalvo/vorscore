@@ -32,7 +32,11 @@ function leaguePath(league: any): string | null {
 }
 function modelInfo(predictions: any) {
   const all = asObject(predictions);
-  const selectedName = all.dc_v2 ? "dc_v2" : all.dc_base ? "dc_base" : null;
+  const candidates = ["dc_v2", "dc_base"].filter((name) => all[name]);
+  const selectedName = candidates.find((name) => {
+    const candidate = asObject(all[name]);
+    return asObject(candidate.gates).probabilities === true && asObject(candidate.data_status).stale !== true;
+  }) ?? candidates[0] ?? null;
   const selected = selectedName ? asObject(all[selectedName]) : {};
   const gates = asObject(selected.gates);
   const status = asObject(selected.data_status);
