@@ -70,24 +70,17 @@
       fixture_id: fixtureId,
       fixture_date: fixturePayload.fixture_date,
       kickoff: fixturePayload.kickoff,
-      kickoff_time: kickoffParts.kickoff_time || null,
       league: fixturePayload.league || null,
       home_team: fixturePayload.home_team,
       away_team: fixturePayload.away_team,
-      market: market || null,
-      selection: selection || null,
       pick: pickDisplayText(market, selection),
       confidence,
       category: document.getElementById('f_category').value,
       reason: document.getElementById('f_reason').value.trim() || null,
-      is_locked: document.getElementById('f_locked').value === 'true',
       publication_status: document.getElementById('f_publication_status').value,
       home_score: fixturePayload.home_score,
       away_score: fixturePayload.away_score,
       final_status: fixturePayload.api_status || fixturePayload.status || null,
-      status: fixturePayload.status || null,
-      api_status: fixturePayload.api_status || null,
-      updated_at: new Date().toISOString(),
     };
     if(verdictChoice && verdictChoice !== 'pending'){
       payload.verdict = verdictChoice;
@@ -121,7 +114,6 @@
       home_score: payload.home_score,
       away_score: payload.away_score,
       source: payload.source,
-      updated_at: new Date().toISOString(),
     };
     if(payload.fixture_id > 0){
       row.next_sync_at = new Date().toISOString();
@@ -196,7 +188,7 @@
   async function publishPrediction(id){
     const { error } = await supabaseClient
       .from('predictions')
-      .update({ publication_status: 'published', updated_at: new Date().toISOString() })
+      .update({ publication_status: 'published' })
       .eq('id', id);
     if(error) throw error;
   }
