@@ -162,7 +162,9 @@
     </div>
     <div>
       <button class="diagnostic-btn" id="dashboardDiagnosticBtn" type="button">Check session</button>
+      <button class="diagnostic-btn" id="syncFootballChartsBtn" type="button">Sync Football-Charts</button>
       <button class="logout" id="logoutBtn">Log out</button>
+      <div id="footballChartsSyncStatus" class="status-msg" aria-live="polite"></div>
       <div id="dashboardDiagnostics"></div>
     </div>
   </div>
@@ -273,6 +275,34 @@
   let editingBlogId = null;
   let selectedFixture = null;
   let editingPrediction = null;
+
+  async function syncFootballCharts(){
+    const button = document.getElementById('syncFootballChartsBtn');
+    const status = document.getElementById('footballChartsSyncStatus');
+    button.disabled = true;
+    button.textContent = 'Syncing Football-Charts…';
+    status.textContent = 'Fetching league fixtures. This can take a minute.';
+    status.className = 'status-msg';
+    try {
+      const { data, error } = await supabaseClient.functions.invoke('football-charts-sync', { body: {} });
+      if (error) throw error;
+      if (!data?.ok && data?.leaguesFailed) {
+        status.textContent = 'Imported ' + (data.matchesUpserted || 0) + ' matches; ' + data.leaguesFailed + ' league requests failed.';
+        status.className = 'status-msg err';
+      } else {
+        status.textContent = 'Sync complete: ' + (data.matchesUpserted || 0) + ' matches saved from ' + (data.leaguesFetched || 0) + ' leagues. Requests used: ' + (data.providerRequestsUsed || '—') + '.';
+        status.className = 'status-msg ok';
+      }
+    } catch (error) {
+      status.textContent = error.message || 'Sync failed. Check Edge Function logs and confirm FOOTBALL_CHARTS_API_KEY is saved in Supabase Edge Function secrets.';
+      status.className = 'status-msg err';
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Sync Football-Charts';
+    }
+  }
+
+  document.getElementById('syncFootballChartsBtn').addEventListener('click', syncFootballCharts);
 
   async function checkSession(){
     if(!supabaseClient){
